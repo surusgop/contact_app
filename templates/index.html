@@ -21,9 +21,20 @@
 </head>
 <body>
   <div class="container py-5" style="max-width: 640px;">
+    <div class="d-flex align-items-center justify-content-between mb-3">
+      <div class="d-flex align-items-center gap-2">
+        {% if current_user.picture %}
+        <img src="{{ current_user.picture }}" class="rounded-circle" width="28" height="28" />
+        {% endif %}
+        <span class="text-muted" style="font-size:.85rem;">{{ current_user.name }}</span>
+      </div>
+      <div class="d-flex gap-2">
+        <a href="/bulk" class="btn btn-outline-primary btn-sm">Bulk Import</a>
+        <a href="/logout" class="btn btn-outline-secondary btn-sm">Sign out</a>
+      </div>
+    </div>
     <div class="d-flex align-items-center justify-content-between mb-1">
       <h4 class="mb-0 fw-semibold">Import Contact</h4>
-      <a href="/bulk" class="btn btn-outline-primary btn-sm">Bulk Import</a>
     </div>
     <p class="text-muted mb-4" style="font-size:.9rem;">Log a contact interaction in NationBuilder.</p>
 

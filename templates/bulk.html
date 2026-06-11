@@ -48,12 +48,23 @@
 </head>
 <body>
   <div class="container py-5" style="max-width: 860px;">
+    <div class="d-flex align-items-center justify-content-between mb-3">
+      <div class="d-flex align-items-center gap-2">
+        {% if current_user.picture %}
+        <img src="{{ current_user.picture }}" class="rounded-circle" width="28" height="28" />
+        {% endif %}
+        <span class="text-muted" style="font-size:.85rem;">{{ current_user.name }}</span>
+      </div>
+      <div class="d-flex gap-2">
+        <a href="/" class="btn btn-outline-secondary btn-sm">Single import</a>
+        <a href="/logout" class="btn btn-outline-secondary btn-sm">Sign out</a>
+      </div>
+    </div>
     <div class="d-flex align-items-center justify-content-between mb-4">
       <div>
         <h4 class="mb-0 fw-semibold">Bulk Import Contacts</h4>
         <p class="text-muted mb-0" style="font-size:.9rem;">Upload a file — AI maps your columns to NationBuilder fields.</p>
       </div>
-      <a href="/" class="btn btn-outline-secondary btn-sm">Single import</a>
     </div>
 
     <!-- Step 1: Upload -->

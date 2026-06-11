@@ -5,7 +5,9 @@ import requests
 import urllib3
 import pandas as pd
 from datetime import datetime, timezone
-from flask import Flask, render_template, request, jsonify
+from flask import Flask, render_template, request, jsonify, redirect, url_for, session
+from flask_login import LoginManager, UserMixin, login_user, logout_user, login_required, current_user
+from authlib.integrations.flask_client import OAuth
 from dotenv import load_dotenv
 from databricks.sdk import WorkspaceClient
 from databricks.sdk.service.sql import StatementParameterListItem, StatementState
@@ -20,6 +22,33 @@ requests.Session.send = _send_no_verify
 load_dotenv()
 
 app = Flask(__name__)
+app.secret_key = os.getenv("FLASK_SECRET_KEY", "dev-secret-change-me")
+
+login_manager = LoginManager(app)
+login_manager.login_view = "login"
+
+oauth = OAuth(app)
+google = oauth.register(
+    name="google",
+    client_id=os.getenv("GOOGLE_CLIENT_ID"),
+    client_secret=os.getenv("GOOGLE_CLIENT_SECRET"),
+    server_metadata_url="https://accounts.google.com/.well-known/openid-configuration",
+    client_kwargs={"scope": "openid email profile"},
+)
+
+class User(UserMixin):
+    def __init__(self, id, email, name, picture):
+        self.id = id
+        self.email = email
+        self.name = name
+        self.picture = picture
+
+_users = {}
+
+@login_manager.user_loader
+def load_user(user_id):
+    return _users.get(user_id)
+
 db = WorkspaceClient()
 WAREHOUSE_ID = os.getenv("DATABRICKS_WAREHOUSE_ID", "")
 
@@ -641,6 +670,7 @@ ALL_NATIONS = load_all_nations()
 
 
 @app.route("/search-nation")
+@login_required
 def search_nation():
     term = request.args.get("term", "").strip().lower()
     if not term:
@@ -653,6 +683,7 @@ def search_nation():
 
 
 @app.route("/search-by-name")
+@login_required
 def search_by_name():
     first = request.args.get("first", "").strip()
     last = request.args.get("last", "").strip()
@@ -734,6 +765,7 @@ def search_by_name():
 
 
 @app.route("/search-signup")
+@login_required
 def search_signup():
     name = request.args.get("name", "").strip()
     nation_slug = request.args.get("nation_slug", "").strip()
@@ -901,11 +933,13 @@ Return ONLY a JSON object:
 
 
 @app.route("/bulk")
+@login_required
 def bulk():
     return render_template("bulk.html")
 
 
 @app.route("/bulk/upload", methods=["POST"])
+@login_required
 def bulk_upload():
     if "file" not in request.files or request.files["file"].filename == "":
         return jsonify({"success": False, "error": "No file uploaded"}), 400
@@ -929,6 +963,7 @@ def bulk_upload():
 
 
 @app.route("/bulk/import", methods=["POST"])
+@login_required
 def bulk_import():
     data = request.get_json()
     nation_slug = data.get("nation_slug", "").strip()
@@ -984,12 +1019,44 @@ def bulk_import():
     return jsonify({"success": True, "results": results})
 
 
+@app.route("/login")
+def login():
+    app_url = os.getenv("APP_URL", "http://localhost:5000")
+    redirect_uri = app_url + "/auth/callback"
+    return google.authorize_redirect(redirect_uri)
+
+@app.route("/auth/callback")
+def auth_callback():
+    token = google.authorize_access_token()
+    userinfo = token.get("userinfo")
+    email = userinfo.get("email", "")
+    if not email.endswith("@surusenterprises.com"):
+        return render_template("login.html", error="Access restricted to Surus Enterprises accounts only.")
+    user = User(
+        id=email,
+        email=email,
+        name=userinfo.get("name", email),
+        picture=userinfo.get("picture", ""),
+    )
+    _users[email] = user
+    login_user(user, remember=True)
+    return redirect("/")
+
+@app.route("/logout")
+@login_required
+def logout():
+    logout_user()
+    return redirect("/login")
+
+
 @app.route("/")
+@login_required
 def index():
     return render_template("index.html", contact_methods=CONTACT_METHODS, contact_statuses=CONTACT_STATUSES)
 
 
 @app.route("/import", methods=["POST"])
+@login_required
 def import_contact():
     form = request.form
     nation_slug = form.get("nation_slug", "").strip()
