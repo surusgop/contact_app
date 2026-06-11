@@ -21,7 +21,10 @@
 </head>
 <body>
   <div class="container py-5" style="max-width: 640px;">
-    <h4 class="mb-1 fw-semibold">Import Contact</h4>
+    <div class="d-flex align-items-center justify-content-between mb-1">
+      <h4 class="mb-0 fw-semibold">Import Contact</h4>
+      <a href="/bulk" class="btn btn-outline-primary btn-sm">Bulk Import</a>
+    </div>
     <p class="text-muted mb-4" style="font-size:.9rem;">Log a contact interaction in NationBuilder.</p>
 
     <form id="contactForm" novalidate>
@@ -30,9 +33,18 @@
       <div class="card mb-3 p-3">
         <div class="section-label">Nation</div>
         <div class="mb-0">
-          <label class="form-label mb-1" for="nation_slug">Nation slug <span class="text-danger">*</span></label>
-          <input type="text" class="form-control" id="nation_slug" name="nation_slug"
-                 placeholder="e.g. barringtongop" value="barringtongop" required />
+          <label class="form-label mb-1" for="nation_search">Search nation <span class="text-danger">*</span></label>
+          <div class="position-relative">
+            <input type="text" class="form-control" id="nation_search"
+                   placeholder="Type a town, area, or nation name…" autocomplete="off" />
+            <div id="nation_results"
+                 class="list-group position-absolute w-100 shadow-sm"
+                 style="z-index:200;display:none;max-height:220px;overflow-y:auto;top:100%;"></div>
+          </div>
+          <input type="hidden" id="nation_slug" name="nation_slug" />
+          <div id="nation_selected" class="mt-1 text-muted" style="font-size:.8rem;display:none;">
+            Slug: <span id="nation_slug_display" class="fw-semibold text-dark"></span>
+          </div>
         </div>
       </div>
 
@@ -40,15 +52,28 @@
       <div class="card mb-3 p-3">
         <div class="section-label">Contact Details</div>
         <div class="row g-3">
+          <div class="col-12">
+            <label class="form-label mb-1" for="name_search">
+              Search person
+              <span class="text-muted fw-normal" style="font-size:.85rem">(type first + last name)</span>
+            </label>
+            <div class="position-relative">
+              <input type="text" class="form-control" id="name_search"
+                     placeholder="e.g. Jane Smith" autocomplete="off" />
+              <div id="search_results"
+                   class="list-group position-absolute w-100 shadow-sm"
+                   style="z-index:200;display:none;max-height:220px;overflow-y:auto;top:100%;"></div>
+            </div>
+          </div>
           <div class="col-6">
             <label class="form-label mb-1" for="signup_id">Signup ID</label>
             <input type="text" class="form-control" id="signup_id" name="signup_id"
-                   placeholder="Person being contacted" />
+                   placeholder="Filled by search" readonly style="background:#f8f9fa;" />
           </div>
           <div class="col-6">
-            <label class="form-label mb-1" for="author_id">Author ID</label>
+            <label class="form-label mb-1" for="author_id">Author ID <span class="text-danger">*</span></label>
             <input type="text" class="form-control" id="author_id" name="author_id"
-                   placeholder="Who made the contact" />
+                   placeholder="NB ID of person logging this" />
           </div>
           <div class="col-6">
             <label class="form-label mb-1" for="contact_method">Contact method</label>
@@ -76,31 +101,8 @@
         </div>
       </div>
 
-      <!-- Optional -->
-      <div class="card mb-3 p-3">
-        <div class="section-label">Optional</div>
-        <div class="row g-3">
-          <div class="col-6">
-            <label class="form-label mb-1" for="broadcaster_id">Broadcaster ID</label>
-            <input type="text" class="form-control" id="broadcaster_id" name="broadcaster_id" />
-          </div>
-          <div class="col-6">
-            <label class="form-label mb-1" for="pc_in_cents">Political capital (cents)</label>
-            <input type="number" class="form-control" id="pc_in_cents" name="pc_in_cents"
-                   min="0" placeholder="0" />
-          </div>
-          <div class="col-6">
-            <label class="form-label mb-1" for="path_id">Path ID</label>
-            <input type="text" class="form-control" id="path_id" name="path_id" />
-          </div>
-          <div class="col-6">
-            <label class="form-label mb-1" for="path_step_id">Path step ID</label>
-            <input type="text" class="form-control" id="path_step_id" name="path_step_id" />
-          </div>
-        </div>
-      </div>
 
-      <button type="submit" class="btn btn-primary w-100" id="submitBtn">
+<button type="submit" class="btn btn-primary w-100" id="submitBtn">
         Import Contact
       </button>
     </form>
@@ -122,7 +124,21 @@
 
       const nationSlug = document.getElementById('nation_slug').value.trim();
       if (!nationSlug) {
-        showResult(false, 'Nation slug is required.', null);
+        showResult(false, 'Please select a nation before importing.', null);
+        nationSearch.focus();
+        return;
+      }
+
+      const signupId = document.getElementById('signup_id').value.trim();
+      if (!signupId) {
+        showResult(false, 'Please search and select a person (Signup ID is required).', null);
+        return;
+      }
+
+      const authorId = document.getElementById('author_id').value.trim();
+      if (!authorId) {
+        showResult(false, 'Author ID is required — enter the NationBuilder ID of the person logging this contact.', null);
+        document.getElementById('author_id').focus();
         return;
       }
 
@@ -150,6 +166,128 @@
         submitBtn.textContent = 'Import Contact';
       }
     });
+
+    // Nation search
+    const nationSearch = document.getElementById('nation_search');
+    const nationResults = document.getElementById('nation_results');
+    const nationSlugInput = document.getElementById('nation_slug');
+    const nationSelected = document.getElementById('nation_selected');
+    const nationSlugDisplay = document.getElementById('nation_slug_display');
+    let nationTimer;
+
+    nationSearch.addEventListener('input', () => {
+      clearTimeout(nationTimer);
+      const val = nationSearch.value.trim();
+      if (val.length < 2) {
+        nationResults.style.display = 'none';
+        return;
+      }
+      nationTimer = setTimeout(() => runNationSearch(val), 300);
+    });
+
+    document.addEventListener('click', (e) => {
+      if (!nationSearch.contains(e.target) && !nationResults.contains(e.target)) {
+        nationResults.style.display = 'none';
+      }
+    });
+
+    async function runNationSearch(term) {
+      nationResults.innerHTML = '<div class="list-group-item text-muted" style="font-size:.85rem">Searching…</div>';
+      nationResults.style.display = 'block';
+      try {
+        const resp = await fetch(`/search-nation?term=${encodeURIComponent(term)}`);
+        const json = await resp.json();
+        nationResults.innerHTML = '';
+        if (!json.success || !json.records.length) {
+          nationResults.innerHTML = '<div class="list-group-item text-muted" style="font-size:.85rem">No matches found</div>';
+          return;
+        }
+        json.records.forEach(record => {
+          const btn = document.createElement('button');
+          btn.type = 'button';
+          btn.className = 'list-group-item list-group-item-action py-2';
+          btn.innerHTML = `
+            <div style="font-size:.9rem;font-weight:500">${record.group}</div>
+            <div class="text-muted" style="font-size:.78rem">${[record.state, record.slug].filter(Boolean).join(' — ')}</div>
+          `;
+          btn.addEventListener('click', () => {
+            nationSlugInput.value = record.slug;
+            nationSearch.value = record.group;
+            nationSlugDisplay.textContent = record.slug;
+            nationSelected.style.display = 'block';
+            nationResults.style.display = 'none';
+          });
+          nationResults.appendChild(btn);
+        });
+      } catch (err) {
+        nationResults.innerHTML = `<div class="list-group-item text-danger" style="font-size:.85rem">Search error: ${err.message}</div>`;
+      }
+    }
+
+    // Name search
+    const nameSearch = document.getElementById('name_search');
+    const searchResults = document.getElementById('search_results');
+    const signupIdInput = document.getElementById('signup_id');
+    let searchTimer;
+
+    nameSearch.addEventListener('input', () => {
+      clearTimeout(searchTimer);
+      const val = nameSearch.value.trim();
+      if (val.length < 2) {
+        searchResults.style.display = 'none';
+        return;
+      }
+      searchTimer = setTimeout(() => runSearch(val), 300);
+    });
+
+    document.addEventListener('click', (e) => {
+      if (!nameSearch.contains(e.target) && !searchResults.contains(e.target)) {
+        searchResults.style.display = 'none';
+      }
+    });
+
+    async function runSearch(name) {
+      const slug = document.getElementById('nation_slug').value.trim();
+      if (!slug) return;
+      searchResults.innerHTML = '<div class="list-group-item text-muted" style="font-size:.85rem">Searching…</div>';
+      searchResults.style.display = 'block';
+      try {
+        const resp = await fetch(`/search-signup?name=${encodeURIComponent(name)}&nation_slug=${encodeURIComponent(slug)}`);
+        const json = await resp.json();
+        searchResults.innerHTML = '';
+        if (!json.success) {
+          searchResults.innerHTML = `<div class="list-group-item text-danger" style="font-size:.85rem">${json.error}</div>`;
+          return;
+        }
+        if (!json.records.length) {
+          searchResults.innerHTML = '<div class="list-group-item text-muted" style="font-size:.85rem">No matches found</div>';
+          return;
+        }
+        json.records.forEach(record => {
+          const displayName = record.full_name || `${record.first_name || ''} ${record.last_name || ''}`.trim();
+          const addressLine = [record.address1].filter(Boolean).join('');
+          const cityLine = [record.city, record.state, record.zip].filter(Boolean).join(', ');
+          const id = record.nb_id ?? '';
+          const btn = document.createElement('button');
+          btn.type = 'button';
+          btn.className = 'list-group-item list-group-item-action py-2';
+          btn.innerHTML = `
+            <div style="font-size:.9rem;font-weight:500">${displayName}</div>
+            ${addressLine ? `<div class="text-muted" style="font-size:.78rem">${addressLine}</div>` : ''}
+            ${cityLine ? `<div class="text-muted" style="font-size:.78rem">${cityLine}</div>` : ''}
+            <div class="text-muted" style="font-size:.75rem">ID: ${id}</div>
+          `;
+          btn.addEventListener('click', () => {
+            signupIdInput.value = id;
+            nameSearch.value = displayName;
+            searchResults.style.display = 'none';
+          });
+          searchResults.appendChild(btn);
+        });
+      } catch (err) {
+        searchResults.innerHTML = `<div class="list-group-item text-danger" style="font-size:.85rem">Search error: ${err.message}</div>`;
+      }
+    }
 
     function showResult(success, message, detail) {
       result.style.display = 'block';
