@@ -1,6 +1,7 @@
 import os
 import io
 import json
+import threading
 import requests
 import urllib3
 import pandas as pd
@@ -669,6 +670,66 @@ def load_all_nations():
 ALL_NATIONS = load_all_nations()
 
 
+def ensure_log_table():
+    if not WAREHOUSE_ID:
+        return
+    try:
+        db.statement_execution.execute_statement(
+            warehouse_id=WAREHOUSE_ID,
+            statement="""
+                CREATE TABLE IF NOT EXISTS universal.logging.contact_app_logs (
+                    event_time  TIMESTAMP,
+                    user_email  STRING,
+                    user_name   STRING,
+                    action      STRING,
+                    nation_slug STRING,
+                    details     STRING,
+                    success     BOOLEAN,
+                    error_message STRING
+                )
+            """,
+            wait_timeout="30s",
+        )
+        print("Log table ready")
+    except Exception as e:
+        print(f"Could not ensure log table (non-critical): {e}")
+
+
+def log_action(action: str, user_email: str, user_name: str,
+               nation_slug: str = "", details: dict = None,
+               success: bool = True, error_message: str = ""):
+    def _write():
+        if not WAREHOUSE_ID:
+            return
+        try:
+            db.statement_execution.execute_statement(
+                warehouse_id=WAREHOUSE_ID,
+                statement="""
+                    INSERT INTO universal.logging.contact_app_logs
+                        (event_time, user_email, user_name, action, nation_slug, details, success, error_message)
+                    VALUES
+                        (current_timestamp(), :email, :uname, :action, :nation, :details,
+                         CAST(:success AS BOOLEAN), :errmsg)
+                """,
+                parameters=[
+                    StatementParameterListItem(name="email",  value=user_email or ""),
+                    StatementParameterListItem(name="uname",  value=user_name or ""),
+                    StatementParameterListItem(name="action", value=action),
+                    StatementParameterListItem(name="nation", value=nation_slug or ""),
+                    StatementParameterListItem(name="details", value=json.dumps(details or {})),
+                    StatementParameterListItem(name="success", value="true" if success else "false"),
+                    StatementParameterListItem(name="errmsg", value=error_message or ""),
+                ],
+                wait_timeout="15s",
+            )
+        except Exception as e:
+            print(f"Log write failed (non-critical): {e}")
+    threading.Thread(target=_write, daemon=True).start()
+
+
+ensure_log_table()
+
+
 @app.route("/search-nation")
 @login_required
 def search_nation():
@@ -721,9 +782,14 @@ def get_author_id():
 def setup():
     if request.method == "POST":
         data = request.get_json() or {}
-        session["default_nation_slug"] = data.get("nation_slug", "").strip()
-        session["default_nation_name"] = data.get("nation_name", "").strip()
-        session["author_nb_id"] = data.get("author_nb_id", "").strip()
+        nation_slug = data.get("nation_slug", "").strip()
+        nation_name = data.get("nation_name", "").strip()
+        author_nb_id = data.get("author_nb_id", "").strip()
+        session["default_nation_slug"] = nation_slug
+        session["default_nation_name"] = nation_name
+        session["author_nb_id"] = author_nb_id
+        log_action("nation_setup", current_user.email, current_user.name, nation_slug,
+                   {"nation_name": nation_name, "author_nb_id": author_nb_id})
         return jsonify({"success": True})
     return render_template("setup.html",
                            default_nation_slug=session.get("default_nation_slug", ""),
@@ -1068,6 +1134,12 @@ def bulk_import():
         except Exception as e:
             results["failed"] += 1
             results["errors"].append({"row": i + 1, "error": str(e)})
+    log_action("bulk_import", current_user.email, current_user.name, nation_slug, {
+        "total_rows": len(rows),
+        "imported": results["success"],
+        "failed": results["failed"],
+        "imported_by": imported_by or current_user.name,
+    }, success=results["failed"] == 0)
     return jsonify({"success": True, "results": results})
 
 
@@ -1092,6 +1164,7 @@ def auth_callback():
     )
     _users[email] = user
     login_user(user, remember=True)
+    log_action("login", email, userinfo.get("name", email))
     return redirect("/setup")
 
 @app.route("/logout")
@@ -1168,7 +1241,14 @@ def import_contact():
             json=body,
         )
         resp.raise_for_status()
-        return jsonify({"success": True, "data": resp.json()})
+        data = resp.json()
+        log_action("single_import", current_user.email, current_user.name, nation_slug, {
+            "contact_id": (data.get("data") or {}).get("id"),
+            "signup_id": form.get("signup_id", ""),
+            "method": form.get("contact_method", ""),
+            "status": form.get("contact_status", ""),
+        })
+        return jsonify({"success": True, "data": data})
     except requests.HTTPError as e:
         detail = None
         if e.response is not None:
@@ -1176,8 +1256,13 @@ def import_contact():
                 detail = e.response.json()
             except Exception:
                 detail = e.response.text
+        log_action("single_import", current_user.email, current_user.name, nation_slug,
+                   {"signup_id": form.get("signup_id", "")},
+                   success=False, error_message=str(e))
         return jsonify({"success": False, "error": str(e), "detail": detail}), 400
     except Exception as e:
+        log_action("single_import", current_user.email, current_user.name, nation_slug,
+                   {}, success=False, error_message=str(e))
         return jsonify({"success": False, "error": str(e)}), 500
 
 
