@@ -29,6 +29,7 @@
         <span class="text-muted" style="font-size:.85rem;">{{ current_user.name }}</span>
       </div>
       <div class="d-flex gap-2">
+        <a href="/setup" class="btn btn-outline-secondary btn-sm">Change nation</a>
         <a href="/bulk" class="btn btn-outline-primary btn-sm">Bulk Import</a>
         <a href="/logout" class="btn btn-outline-secondary btn-sm">Sign out</a>
       </div>
@@ -299,6 +300,22 @@
         searchResults.innerHTML = `<div class="list-group-item text-danger" style="font-size:.85rem">Search error: ${err.message}</div>`;
       }
     }
+
+    // Pre-fill from session (set on setup page)
+    window.addEventListener('DOMContentLoaded', () => {
+      const defaultSlug = "{{ default_nation_slug }}";
+      const defaultName = "{{ default_nation_name }}";
+      const defaultAuthorId = "{{ author_nb_id }}";
+      if (defaultSlug && defaultName) {
+        nationSlugInput.value = defaultSlug;
+        nationSearch.value = defaultName;
+        nationSlugDisplay.textContent = defaultSlug;
+        nationSelected.style.display = 'block';
+      }
+      if (defaultAuthorId) {
+        document.getElementById('author_id').value = defaultAuthorId;
+      }
+    });
 
     function showResult(success, message, detail) {
       result.style.display = 'block';

@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Select Your Nation — Surus Contact App</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" />
+  <style>
+    body { background: #f4f6f9; }
+    .setup-card {
+      max-width: 480px; margin: 80px auto;
+      border: none; box-shadow: 0 2px 12px rgba(0,0,0,.1);
+      border-radius: .75rem; padding: 2.5rem;
+      background: #fff;
+    }
+    .lookup-status { min-height: 36px; }
+  </style>
+</head>
+<body>
+  <div class="setup-card">
+    <div class="text-center mb-4">
+      <div class="mb-2">
+        {% if current_user.picture %}
+        <img src="{{ current_user.picture }}" class="rounded-circle" width="48" height="48" />
+        {% endif %}
+      </div>
+      <h5 class="fw-semibold mb-1">Welcome, {{ current_user.name.split()[0] }}!</h5>
+      <p class="text-muted mb-0" style="font-size:.9rem;">Select your NationBuilder nation to continue.</p>
+    </div>
+
+    <div class="mb-3">
+      <label class="form-label fw-semibold" style="font-size:.85rem;">Your nation <span class="text-danger">*</span></label>
+      <div class="position-relative">
+        <input type="text" class="form-control" id="nation_search"
+               placeholder="Type a town, area, or nation name…" autocomplete="off" />
+        <div id="nation_results" class="list-group position-absolute w-100 shadow-sm"
+             style="z-index:200;display:none;max-height:220px;overflow-y:auto;top:100%;"></div>
+      </div>
+      <input type="hidden" id="nation_slug" />
+      <div id="nation_selected" class="mt-1 text-muted" style="font-size:.8rem;display:none;">
+        Slug: <span id="nation_slug_display" class="fw-semibold text-dark"></span>
+      </div>
+    </div>
+
+    <div class="lookup-status mb-3" id="lookup-status"></div>
+
+    <div class="mb-4" id="nb-id-row" style="display:none;">
+      <label class="form-label fw-semibold" style="font-size:.85rem;">Your NationBuilder ID</label>
+      <input type="text" class="form-control" id="nb_id_input" placeholder="Enter your NB ID" />
+      <div class="form-text" id="nb-id-help"></div>
+    </div>
+
+    <button class="btn btn-primary w-100" id="continue-btn" disabled onclick="saveAndContinue()">
+      Continue
+    </button>
+
+    <div class="text-center mt-3">
+      <a href="/logout" class="text-muted" style="font-size:.8rem;">Sign out</a>
+    </div>
+  </div>
+
+  <script>
+    const nationSearch = document.getElementById('nation_search');
+    const nationResults = document.getElementById('nation_results');
+    const nationSlugInput = document.getElementById('nation_slug');
+    const nationSelected = document.getElementById('nation_selected');
+    const nationSlugDisplay = document.getElementById('nation_slug_display');
+    const lookupStatus = document.getElementById('lookup-status');
+    const nbIdRow = document.getElementById('nb-id-row');
+    const nbIdInput = document.getElementById('nb_id_input');
+    const nbIdHelp = document.getElementById('nb-id-help');
+    const continueBtn = document.getElementById('continue-btn');
+    let selectedNationName = '';
+    let nationTimer;
+
+    // Pre-fill from session if returning
+    const savedSlug = "{{ default_nation_slug }}";
+    const savedName = "{{ default_nation_name }}";
+    const savedNbId = "{{ author_nb_id }}";
+    if (savedSlug && savedName) {
+      nationSlugInput.value = savedSlug;
+      nationSearch.value = savedName;
+      nationSlugDisplay.textContent = savedSlug;
+      nationSelected.style.display = 'block';
+      selectedNationName = savedName;
+      nbIdRow.style.display = 'block';
+      if (savedNbId) {
+        nbIdInput.value = savedNbId;
+        nbIdHelp.innerHTML = `<span class="text-success">✓ Previously saved</span> — edit to change`;
+        continueBtn.disabled = false;
+      }
+    }
+
+    nationSearch.addEventListener('input', () => {
+      clearTimeout(nationTimer);
+      const val = nationSearch.value.trim();
+      // Clear selection if user is typing a new search
+      nationSlugInput.value = '';
+      nationSelected.style.display = 'none';
+      nbIdRow.style.display = 'none';
+      lookupStatus.innerHTML = '';
+      continueBtn.disabled = true;
+      if (val.length < 2) { nationResults.style.display = 'none'; return; }
+      nationTimer = setTimeout(() => runNationSearch(val), 300);
+    });
+
+    document.addEventListener('click', e => {
+      if (!nationSearch.contains(e.target) && !nationResults.contains(e.target))
+        nationResults.style.display = 'none';
+    });
+
+    async function runNationSearch(term) {
+      nationResults.innerHTML = '<div class="list-group-item text-muted" style="font-size:.85rem">Searching…</div>';
+      nationResults.style.display = 'block';
+      try {
+        const resp = await fetch(`/search-nation?term=${encodeURIComponent(term)}`);
+        const json = await resp.json();
+        nationResults.innerHTML = '';
+        if (!json.success || !json.records.length) {
+          nationResults.innerHTML = '<div class="list-group-item text-muted" style="font-size:.85rem">No matches found</div>';
+          return;
+        }
+        json.records.forEach(r => {
+          const btn = document.createElement('button');
+          btn.type = 'button';
+          btn.className = 'list-group-item list-group-item-action py-2';
+          btn.innerHTML = `
+            <div style="font-size:.9rem;font-weight:500">${r.group}</div>
+            <div class="text-muted" style="font-size:.78rem">${[r.state, r.slug].filter(Boolean).join(' — ')}</div>`;
+          btn.addEventListener('click', () => {
+            nationSlugInput.value = r.slug;
+            nationSearch.value = r.group;
+            selectedNationName = r.group;
+            nationSlugDisplay.textContent = r.slug;
+            nationSelected.style.display = 'block';
+            nationResults.style.display = 'none';
+            lookupAuthorId(r.slug);
+          });
+          nationResults.appendChild(btn);
+        });
+      } catch (err) {
+        nationResults.innerHTML = `<div class="list-group-item text-danger" style="font-size:.85rem">Error: ${err.message}</div>`;
+      }
+    }
+
+    async function lookupAuthorId(slug) {
+      lookupStatus.innerHTML = `
+        <div class="d-flex align-items-center gap-2 text-muted" style="font-size:.85rem;">
+          <div class="spinner-border spinner-border-sm"></div>
+          Looking up your account in this nation…
+        </div>`;
+      nbIdRow.style.display = 'none';
+      continueBtn.disabled = true;
+
+      try {
+        const resp = await fetch(`/get-author-id?nation_slug=${encodeURIComponent(slug)}`);
+        const json = await resp.json();
+        nbIdRow.style.display = 'block';
+
+        if (json.nb_id) {
+          nbIdInput.value = json.nb_id;
+          const name = json.name || 'you';
+          lookupStatus.innerHTML = `<div class="alert alert-success py-2 mb-0" style="font-size:.85rem;">✓ Found: <strong>${name}</strong> — NB ID: <strong>${json.nb_id}</strong></div>`;
+          nbIdHelp.innerHTML = `Auto-filled from your Surus account — edit if needed`;
+          continueBtn.disabled = false;
+        } else {
+          nbIdInput.value = '';
+          lookupStatus.innerHTML = `<div class="alert alert-warning py-2 mb-0" style="font-size:.85rem;">Your account wasn't found in this nation — enter your NB ID manually below.</div>`;
+          nbIdHelp.innerHTML = `Enter your NationBuilder person ID for this nation`;
+          nbIdInput.focus();
+        }
+      } catch (err) {
+        nbIdRow.style.display = 'block';
+        nbIdInput.value = '';
+        lookupStatus.innerHTML = `<div class="alert alert-warning py-2 mb-0" style="font-size:.85rem;">Couldn't auto-lookup ID — enter it manually.</div>`;
+      }
+    }
+
+    nbIdInput.addEventListener('input', () => {
+      continueBtn.disabled = !nationSlugInput.value.trim() || !nbIdInput.value.trim();
+    });
+
+    async function saveAndContinue() {
+      const slug = nationSlugInput.value.trim();
+      const nbId = nbIdInput.value.trim();
+      if (!slug) { nationSearch.focus(); return; }
+
+      continueBtn.disabled = true;
+      continueBtn.textContent = 'Saving…';
+
+      try {
+        await fetch('/setup', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ nation_slug: slug, nation_name: selectedNationName, author_nb_id: nbId }),
+        });
+        window.location.href = '/';
+      } catch (err) {
+        continueBtn.disabled = false;
+        continueBtn.textContent = 'Continue';
+        alert('Error saving settings: ' + err.message);
+      }
+    }
+  </script>
+</body>
+</html>

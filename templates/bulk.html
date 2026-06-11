@@ -56,6 +56,7 @@
         <span class="text-muted" style="font-size:.85rem;">{{ current_user.name }}</span>
       </div>
       <div class="d-flex gap-2">
+        <a href="/setup" class="btn btn-outline-secondary btn-sm">Change nation</a>
         <a href="/" class="btn btn-outline-secondary btn-sm">Single import</a>
         <a href="/logout" class="btn btn-outline-secondary btn-sm">Sign out</a>
       </div>
@@ -161,6 +162,22 @@
   </div>
 
   <script>
+    // Pre-fill from session
+    window.addEventListener('DOMContentLoaded', () => {
+      const defaultSlug = "{{ default_nation_slug }}";
+      const defaultName = "{{ default_nation_name }}";
+      const defaultAuthorId = "{{ author_nb_id }}";
+      if (defaultSlug && defaultName) {
+        nationSlugInput.value = defaultSlug;
+        nationSearch.value = defaultName;
+        nationSlugDisplay.textContent = defaultSlug;
+        nationSelected.style.display = 'block';
+      }
+      if (defaultAuthorId) {
+        document.getElementById('default_author_id').value = defaultAuthorId;
+      }
+    });
+
     // ── Nation search ──────────────────────────────────────────────
     const nationSearch = document.getElementById('nation_search');
     const nationResults = document.getElementById('nation_results');

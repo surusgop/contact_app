@@ -682,6 +682,55 @@ def search_nation():
     return jsonify({"success": True, "records": matches[:20]})
 
 
+@app.route("/get-author-id")
+@login_required
+def get_author_id():
+    nation_slug = request.args.get("nation_slug", "").strip()
+    if not nation_slug or not WAREHOUSE_ID:
+        return jsonify({"success": False, "nb_id": None})
+    try:
+        result = db.statement_execution.execute_statement(
+            warehouse_id=WAREHOUSE_ID,
+            statement="""
+                SELECT nb_id, full_name, first_name, last_name
+                FROM universal.prod.signups
+                WHERE email = :email AND nation = :nation
+                LIMIT 1
+            """,
+            parameters=[
+                StatementParameterListItem(name="email", value=current_user.email),
+                StatementParameterListItem(name="nation", value=nation_slug),
+            ],
+            wait_timeout="30s",
+        )
+        if result.status.state != StatementState.SUCCEEDED:
+            return jsonify({"success": False, "nb_id": None})
+        cols = [c.name for c in result.manifest.schema.columns]
+        rows = (result.result.data_array if result.result else None) or []
+        if rows:
+            rec = dict(zip(cols, rows[0]))
+            name = rec.get("full_name") or f"{rec.get('first_name','') or ''} {rec.get('last_name','') or ''}".strip()
+            return jsonify({"success": True, "nb_id": rec.get("nb_id"), "name": name})
+        return jsonify({"success": True, "nb_id": None})
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e), "nb_id": None})
+
+
+@app.route("/setup", methods=["GET", "POST"])
+@login_required
+def setup():
+    if request.method == "POST":
+        data = request.get_json() or {}
+        session["default_nation_slug"] = data.get("nation_slug", "").strip()
+        session["default_nation_name"] = data.get("nation_name", "").strip()
+        session["author_nb_id"] = data.get("author_nb_id", "").strip()
+        return jsonify({"success": True})
+    return render_template("setup.html",
+                           default_nation_slug=session.get("default_nation_slug", ""),
+                           default_nation_name=session.get("default_nation_name", ""),
+                           author_nb_id=session.get("author_nb_id", ""))
+
+
 @app.route("/search-by-name")
 @login_required
 def search_by_name():
@@ -935,7 +984,10 @@ Return ONLY a JSON object:
 @app.route("/bulk")
 @login_required
 def bulk():
-    return render_template("bulk.html")
+    return render_template("bulk.html",
+                           default_nation_slug=session.get("default_nation_slug", ""),
+                           default_nation_name=session.get("default_nation_name", ""),
+                           author_nb_id=session.get("author_nb_id", ""))
 
 
 @app.route("/bulk/upload", methods=["POST"])
@@ -1040,7 +1092,7 @@ def auth_callback():
     )
     _users[email] = user
     login_user(user, remember=True)
-    return redirect("/")
+    return redirect("/setup")
 
 @app.route("/logout")
 @login_required
@@ -1052,7 +1104,12 @@ def logout():
 @app.route("/")
 @login_required
 def index():
-    return render_template("index.html", contact_methods=CONTACT_METHODS, contact_statuses=CONTACT_STATUSES)
+    return render_template("index.html",
+                           contact_methods=CONTACT_METHODS,
+                           contact_statuses=CONTACT_STATUSES,
+                           default_nation_slug=session.get("default_nation_slug", ""),
+                           default_nation_name=session.get("default_nation_name", ""),
+                           author_nb_id=session.get("author_nb_id", ""))
 
 
 @app.route("/import", methods=["POST"])
