@@ -1216,7 +1216,9 @@ def login():
 @app.route("/auth/callback")
 def auth_callback():
     token = google.authorize_access_token()
-    userinfo = token.get("userinfo")
+    userinfo = token.get("userinfo") or google.userinfo()
+    if not userinfo:
+        return render_template("login.html", error="Could not retrieve account info from Google.")
     email = userinfo.get("email", "")
     if not email.endswith("@surusenterprises.com"):
         return render_template("login.html", error="Access restricted to Surus Enterprises accounts only.")
