@@ -51,7 +51,10 @@ _users = {}
 def load_user(user_id):
     return _users.get(user_id)
 
-db = WorkspaceClient()
+db = WorkspaceClient(
+    host=os.getenv("DATABRICKS_HOST"),
+    token=os.getenv("DATABRICKS_TOKEN"),
+)
 WAREHOUSE_ID = os.getenv("DATABRICKS_WAREHOUSE_ID", "")
 
 CONTACT_METHODS = [
@@ -115,7 +118,7 @@ _NICKNAME_GROUPS = [
     ("sam", "samuel", "sammy"),
     ("stan", "stanley", "stanford"),
     ("stu", "stuart", "stewart"),
-    ("theo", "theodore"),
+    ("theo", "theodore", "teddy"),
     ("vince", "vincent", "vinny"),
     ("walt", "walter", "wally"),
     ("wes", "wesley", "weston"),
@@ -274,7 +277,7 @@ _NICKNAME_GROUPS = [
     ("rosie", "rosemary", "rose", "rosanna"),
     ("sadie", "sarah"),
     ("sally", "sarah"),
-    ("sam", "samantha", "samara"),
+    ("sam", "samantha", "samara", "sammy"),
     ("sandy", "sandra", "cassandra"),
     ("sasha", "alexandra", "natasha"),
     ("sherry", "sharon", "charlotte"),
@@ -286,6 +289,7 @@ _NICKNAME_GROUPS = [
     ("tess", "theresa", "teresa", "tessa"),
     ("tina", "christina", "valentina", "martina"),
     ("trudy", "gertrude"),
+    ("tari", "terrance", "terry", "tarry", "carolyn"),
     ("val", "valerie", "valentine"),
     ("vicki", "victoria"),
     ("viv", "vivienne", "vivian"),
@@ -362,7 +366,7 @@ _NICKNAME_GROUPS = [
     ("lindy", "linda", "belinda", "melinda"),
     ("livvy", "olivia", "livia"),
     ("lottie", "charlotte", "carlotta"),
-    ("lu", "louisa", "lucy", "lucille", "lucia", "lucinda"),
+    ("lu", "louisa", "lucy", "lucille", "lucia", "lucinda", "louise", "lulu"),
     ("maddie", "madeleine", "madeline", "madelyn", "madison"),
     ("mae", "mary", "margaret", "may", "maeve"),
     ("maisie", "margaret", "mary", "miriam"),
@@ -489,6 +493,7 @@ _NICKNAME_GROUPS = [
     ("fox", "foxworth"),
     ("gib", "gilbert", "gibson"),
     ("gordie", "gordon"),
+    ("grace", "gracie", "gracey", "gray", "grey"),
     ("gray", "grayson"),
     ("ham", "hamilton", "hamlet"),
     ("harley", "harold", "harlan"),
