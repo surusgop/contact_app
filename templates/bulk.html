@@ -651,6 +651,8 @@
     }
 
     // ── Import ─────────────────────────────────────────────────────
+    let _lastErrors = [];
+
     async function runImport() {
       const slug = nationSlugInput.value.trim();
       const authorId = document.getElementById('default_author_id').value.trim();
@@ -672,6 +674,7 @@
           body: JSON.stringify({ nation_slug: slug, rows, imported_by: importedBy }),
         });
         const json = await resp.json();
+        _lastErrors = json.results.errors || [];
         showResults(json.results);
       } catch (err) {
         alert(`Import failed: ${err.message}`);
@@ -719,15 +722,52 @@
         </div>`;
       if (results.errors.length) {
         html += `<div class="s-label" style="margin:.75rem 0 .5rem;">Failed Rows</div>
-          <div style="max-height:280px;overflow-y:auto;">
+          <div style="max-height:220px;overflow-y:auto;margin-bottom:1rem;">
           ${results.errors.map(e => `
             <div class="error-row">
               <strong>Row ${e.row}:</strong> ${friendlyError(e)}
             </div>`).join('')}
-          </div>`;
+          </div>
+          <button class="btn-red" onclick="fixFailedRows()" style="margin-bottom:.5rem;">
+            ✎ Fix ${results.errors.length} Failed Row${results.errors.length > 1 ? 's' : ''}
+          </button>`;
       }
       content.innerHTML = html;
       showStep('step-results');
+    }
+
+    function fixFailedRows() {
+      const nbFields = ['signup_id', 'contact_method', 'contact_status', 'contact_date', 'content'];
+      const failed = _lastErrors.map(e => ({
+        rowData: allRows[e.row - 1],
+        msg: friendlyError(e),
+      })).filter(f => f.rowData);
+
+      // Replace allRows with only the failed ones
+      allRows = failed.map(f => f.rowData);
+
+      document.getElementById('preview-head').innerHTML =
+        nbFields.map(f => `<th>${f}</th>`).join('') + '<th style="width:32px;"></th>';
+
+      const body = document.getElementById('preview-body');
+      body.innerHTML = '';
+      failed.forEach(({ rowData, msg }) => {
+        // Error banner spanning all columns
+        const bannerTr = document.createElement('tr');
+        const bannerTd = document.createElement('td');
+        bannerTd.colSpan = nbFields.length + 1;
+        bannerTd.style.padding = '.3rem .5rem .1rem';
+        bannerTd.innerHTML = `<div style="background:rgba(197,48,48,.12);border:1px solid rgba(197,48,48,.3);border-radius:6px;padding:.3rem .75rem;font-size:.74rem;color:#f87171;">⚠ ${msg}</div>`;
+        bannerTr.appendChild(bannerTd);
+        body.appendChild(bannerTr);
+        // Editable row
+        renderPreviewRow(body, rowData, nbFields);
+      });
+
+      updatePreviewCount();
+      document.getElementById('ai-notes').innerHTML =
+        `<div class="alert-warn"><strong>Fix mode:</strong> Only the ${failed.length} failed row${failed.length !== 1 ? 's' : ''} are shown. Correct the issues above each row, then click Import.</div>`;
+      showStep('step-preview');
     }
 
     function showStep(id) {
