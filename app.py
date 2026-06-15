@@ -942,7 +942,7 @@ def parse_image_with_ai(raw: bytes, filename: str) -> pd.DataFrame:
         "https://openrouter.ai/api/v1/chat/completions",
         headers={"Authorization": f"Bearer {OPENROUTER_API_KEY}", "Content-Type": "application/json"},
         json={
-            "model": "google/gemini-2.0-flash-exp:free",
+            "model": "openai/gpt-4o-mini",
             "messages": [{
                 "role": "user",
                 "content": [

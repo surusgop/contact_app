@@ -187,6 +187,14 @@
     .stat-err span { font-family: 'Oswald', sans-serif; font-size: 2.5rem; color: #f87171; }
     .stat-label { font-size: .75rem; color: var(--muted); text-transform: uppercase; letter-spacing: .08em; margin-top: .1rem; }
     .error-row { background: rgba(197,48,48,.08); border: 1px solid rgba(197,48,48,.2); border-radius: 6px; padding: .5rem .85rem; font-size: .78rem; color: #f87171; margin-bottom: .4rem; }
+    .file-row { display: flex; align-items: center; gap: .65rem; padding: .5rem .75rem; background: var(--surface-2); border: 1px solid var(--border); border-radius: 7px; margin-bottom: .4rem; font-size: .84rem; }
+    .file-row .file-icon { font-size: 1rem; flex-shrink: 0; }
+    .file-row .file-name { flex: 1; color: var(--gold); font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .file-row .file-status { font-size: .76rem; flex-shrink: 0; }
+    .status-waiting { color: var(--muted); }
+    .status-processing { color: #93c5fd; }
+    .status-done { color: #4ade80; }
+    .status-error { color: #f87171; }
   </style>
 </head>
 <body>
@@ -237,18 +245,16 @@
       </div>
 
       <div class="s-card">
-        <div class="s-label">Upload File</div>
+        <div class="s-label">Upload Files</div>
         <div class="drop-zone" id="drop-zone" onclick="document.getElementById('file-input').click()">
           <div class="drop-icon">📂</div>
-          <div class="drop-title">Drop a file or click to browse</div>
-          <div class="drop-sub">CSV, Excel, Word, TXT, PDF, JSON, Images (PNG, JPG, etc.) — any format</div>
+          <div class="drop-title">Drop files here or click to browse</div>
+          <div class="drop-sub">Select multiple files — CSV, Excel, Word, TXT, PDF, JSON, Images (PNG, JPG, etc.)</div>
         </div>
-        <input type="file" id="file-input" style="display:none;" />
-        <div id="selected-file" style="display:none;">
-          <div class="file-selected">
-            <span id="selected-file-name" class="file-name"></span>
-            <button class="btn-red" onclick="startUpload()">Upload &amp; Map with AI</button>
-          </div>
+        <input type="file" id="file-input" multiple style="display:none;" />
+        <div id="file-list" style="margin-top:1rem;display:none;">
+          <div id="file-list-items" style="margin-bottom:.85rem;"></div>
+          <button class="btn-red" onclick="startUpload()">Upload &amp; Map with AI</button>
         </div>
         <div id="upload-status" style="display:none;margin-top:1rem;"></div>
       </div>
@@ -378,24 +384,48 @@
     // ── File upload ────────────────────────────────────────────────
     const dropZone = document.getElementById('drop-zone');
     const fileInput = document.getElementById('file-input');
-    let selectedFile = null;
+    let selectedFiles = [];
     let allRows = [];
 
     dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('dragover'); });
     dropZone.addEventListener('dragleave', () => dropZone.classList.remove('dragover'));
     dropZone.addEventListener('drop', e => {
       e.preventDefault(); dropZone.classList.remove('dragover');
-      if (e.dataTransfer.files[0]) selectFile(e.dataTransfer.files[0]);
+      if (e.dataTransfer.files.length) setFiles(Array.from(e.dataTransfer.files));
     });
-    fileInput.addEventListener('change', () => { if (fileInput.files[0]) selectFile(fileInput.files[0]); });
+    fileInput.addEventListener('change', () => {
+      if (fileInput.files.length) setFiles(Array.from(fileInput.files));
+    });
 
-    function selectFile(file) {
-      selectedFile = file;
-      document.getElementById('selected-file-name').textContent = file.name;
-      document.getElementById('selected-file').style.display = 'block';
+    function fileIcon(name) {
+      const ext = name.split('.').pop().toLowerCase();
+      if (['png','jpg','jpeg','gif','bmp','webp'].includes(ext)) return '🖼️';
+      if (['csv','txt'].includes(ext)) return '📄';
+      if (['xlsx','xls'].includes(ext)) return '📊';
+      if (ext === 'pdf') return '📕';
+      if (ext === 'docx') return '📝';
+      return '📂';
     }
 
-    function startUpload() {
+    function setFiles(files) {
+      selectedFiles = files;
+      const listEl = document.getElementById('file-list');
+      const itemsEl = document.getElementById('file-list-items');
+      itemsEl.innerHTML = files.map((f, i) => `
+        <div class="file-row" id="file-row-${i}">
+          <span class="file-icon">${fileIcon(f.name)}</span>
+          <span class="file-name" title="${f.name}">${f.name}</span>
+          <span class="file-status status-waiting" id="file-status-${i}">Waiting</span>
+        </div>`).join('');
+      listEl.style.display = 'block';
+    }
+
+    function setFileStatus(i, cls, text) {
+      const el = document.getElementById(`file-status-${i}`);
+      if (el) { el.className = `file-status ${cls}`; el.textContent = text; }
+    }
+
+    async function startUpload() {
       const slug = nationSlugInput.value.trim();
       if (!slug) {
         const s = document.getElementById('upload-status');
@@ -403,25 +433,64 @@
         s.innerHTML = '<div class="alert-warn">Please select a nation before uploading.</div>';
         return;
       }
-      if (!selectedFile) return;
-      uploadFile(selectedFile);
-    }
+      if (!selectedFiles.length) return;
 
-    async function uploadFile(file) {
       const status = document.getElementById('upload-status');
       status.style.display = 'block';
-      status.innerHTML = `<div class="alert-info"><span class="spinner"></span>Parsing <strong>${file.name}</strong> and mapping columns with AI…</div>`;
-      const fd = new FormData();
-      fd.append('file', file);
-      try {
-        const resp = await fetch('/bulk/upload', { method: 'POST', body: fd });
-        const json = await resp.json();
-        if (!json.success) { status.innerHTML = `<div class="alert-err">${json.error}</div>`; return; }
-        allRows = json.all_rows;
-        showPreview(json);
-      } catch (err) {
-        status.innerHTML = `<div class="alert-err">Upload failed: ${err.message}</div>`;
+      status.innerHTML = `<div class="alert-info"><span class="spinner"></span>Processing ${selectedFiles.length} file${selectedFiles.length > 1 ? 's' : ''} with AI…</div>`;
+
+      const allResults = [];
+      let anyError = false;
+
+      for (let i = 0; i < selectedFiles.length; i++) {
+        const file = selectedFiles[i];
+        setFileStatus(i, 'status-processing', '⟳ Processing…');
+        try {
+          const fd = new FormData();
+          fd.append('file', file);
+          const resp = await fetch('/bulk/upload', { method: 'POST', body: fd });
+          const json = await resp.json();
+          if (!json.success) {
+            setFileStatus(i, 'status-error', `✗ ${json.error}`);
+            anyError = true;
+          } else {
+            setFileStatus(i, 'status-done', `✓ ${json.total_rows} row${json.total_rows !== 1 ? 's' : ''}`);
+            allResults.push(json);
+          }
+        } catch (err) {
+          setFileStatus(i, 'status-error', `✗ ${err.message}`);
+          anyError = true;
+        }
       }
+
+      if (!allResults.length) {
+        status.innerHTML = '<div class="alert-err">All files failed to process.</div>';
+        return;
+      }
+
+      // Merge results from all files
+      const merged = mergeUploadResults(allResults);
+      allRows = merged.all_rows;
+
+      status.innerHTML = anyError
+        ? `<div class="alert-warn">Processed with some errors — ${allRows.length} rows ready to preview.</div>`
+        : `<div class="alert-ok">✓ All files processed — ${allRows.length} total rows ready.</div>`;
+
+      showPreview(merged);
+    }
+
+    function mergeUploadResults(results) {
+      const allRowsMerged = results.flatMap(r => r.all_rows);
+      // Union of all column mappings
+      const colMap = Object.assign({}, ...results.map(r => r.mapping?.column_mapping || {}));
+      // Combine notes
+      const notes = results.map(r => r.mapping?.notes).filter(Boolean).join(' | ');
+      return {
+        all_rows: allRowsMerged,
+        mapping: { column_mapping: colMap, notes },
+        preview: allRowsMerged.slice(0, 10),
+        total_rows: allRowsMerged.length,
+      };
     }
 
     let activeLookupDropdown = null;
@@ -583,10 +652,11 @@
     }
 
     function resetToUpload() {
-      allRows = []; selectedFile = null;
+      allRows = []; selectedFiles = [];
       document.getElementById('file-input').value = '';
+      document.getElementById('file-list').style.display = 'none';
+      document.getElementById('file-list-items').innerHTML = '';
       document.getElementById('upload-status').style.display = 'none';
-      document.getElementById('selected-file').style.display = 'none';
       showStep('step-upload');
     }
   </script>
