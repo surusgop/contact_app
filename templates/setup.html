@@ -3,60 +3,235 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Select Your Nation — Surus Contact App</title>
-  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" />
+  <title>Select Nation — Surus Contact App</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet" />
   <style>
-    body { background: #f4f6f9; }
-    .setup-card {
-      max-width: 480px; margin: 80px auto;
-      border: none; box-shadow: 0 2px 12px rgba(0,0,0,.1);
-      border-radius: .75rem; padding: 2.5rem;
-      background: #fff;
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #0d1823;
+      --surface: #162032;
+      --surface-2: #1e2d40;
+      --gold: #d4a84b;
+      --red: #c53030;
+      --red-dark: #a82828;
+      --text: #dde4ee;
+      --muted: #5a7a96;
+      --border: #253649;
+      --input-bg: #0f1f2e;
     }
-    .lookup-status { min-height: 36px; }
+
+    body {
+      font-family: 'Inter', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      padding: 1.5rem;
+    }
+
+    .page-header {
+      width: 100%; max-width: 540px;
+      display: flex; align-items: center;
+      padding-bottom: .85rem;
+      border-bottom: 2px solid var(--red);
+      margin-bottom: 2.5rem;
+    }
+    .brand-name {
+      font-family: 'Oswald', sans-serif;
+      font-size: 1.2rem; font-weight: 700;
+      color: var(--gold); letter-spacing: .12em; text-transform: uppercase;
+    }
+    .brand-sep { color: var(--red); margin: 0 .6rem; }
+    .brand-sub {
+      font-family: 'Oswald', sans-serif;
+      font-size: .85rem; color: var(--muted);
+      letter-spacing: .1em; text-transform: uppercase;
+    }
+
+    .setup-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 2rem 2rem 1.75rem;
+      width: 100%; max-width: 540px;
+      box-shadow: 0 8px 32px rgba(0,0,0,.4);
+    }
+
+    .user-row {
+      display: flex; align-items: center; gap: .85rem;
+      margin-bottom: 1.5rem;
+      padding-bottom: 1.25rem;
+      border-bottom: 1px solid var(--border);
+    }
+    .user-avatar {
+      width: 44px; height: 44px; border-radius: 50%;
+      border: 2px solid var(--border);
+    }
+    .user-welcome { font-size: .72rem; color: var(--muted); text-transform: uppercase; letter-spacing: .08em; }
+    .user-name { font-family: 'Oswald', sans-serif; font-size: 1.1rem; color: var(--text); letter-spacing: .04em; }
+
+    .section-label {
+      font-family: 'Oswald', sans-serif;
+      font-size: .7rem; letter-spacing: .15em;
+      text-transform: uppercase; color: var(--gold);
+      margin-bottom: .75rem;
+    }
+
+    .form-label {
+      font-size: .78rem; font-weight: 500;
+      color: var(--muted); margin-bottom: .35rem; display: block;
+    }
+    .form-label span { color: var(--red); }
+
+    .form-control {
+      width: 100%;
+      background: var(--input-bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      color: var(--text);
+      font-size: .88rem; font-family: 'Inter', sans-serif;
+      padding: .6rem .9rem;
+      transition: border-color .15s, box-shadow .15s;
+      outline: none;
+    }
+    .form-control:focus {
+      border-color: var(--red);
+      box-shadow: 0 0 0 3px rgba(197,48,48,.2);
+    }
+    .form-control::placeholder { color: #3a5269; }
+
+    .dropdown-box {
+      background: var(--surface-2);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      box-shadow: 0 8px 32px rgba(0,0,0,.5);
+      overflow: hidden;
+      position: absolute;
+      width: 100%; top: calc(100% + 4px);
+      z-index: 300;
+    }
+    .dropdown-item {
+      padding: .6rem 1rem;
+      border-bottom: 1px solid var(--border);
+      cursor: pointer; font-size: .87rem;
+      transition: background .1s;
+    }
+    .dropdown-item:hover { background: #253649; }
+    .dropdown-item:last-child { border-bottom: none; }
+    .dropdown-item .item-main { font-weight: 500; color: var(--text); }
+    .dropdown-item .item-sub { font-size: .75rem; color: var(--muted); margin-top: .1rem; }
+
+    .slug-badge {
+      display: inline-flex; align-items: center; gap: .35rem;
+      background: rgba(212,168,75,.12);
+      border: 1px solid rgba(212,168,75,.35);
+      color: var(--gold); border-radius: 6px;
+      padding: .22rem .65rem; font-size: .76rem; font-weight: 500;
+      margin-top: .45rem;
+    }
+
+    .lookup-box { min-height: 44px; margin: .75rem 0; }
+    .lookup-loading { display: flex; align-items: center; gap: .5rem; font-size: .83rem; color: var(--muted); }
+    .spin { animation: spin 1s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .alert-ok {
+      background: rgba(22,163,74,.12); border: 1px solid rgba(22,163,74,.3);
+      border-radius: 8px; padding: .6rem 1rem; font-size: .83rem; color: #4ade80;
+    }
+    .alert-warn {
+      background: rgba(217,119,6,.12); border: 1px solid rgba(217,119,6,.3);
+      border-radius: 8px; padding: .6rem 1rem; font-size: .83rem; color: #fbbf24;
+    }
+    .form-hint { font-size: .74rem; color: var(--muted); margin-top: .3rem; }
+    .form-hint .ok { color: #4ade80; }
+
+    .btn-continue {
+      width: 100%; padding: .75rem;
+      background: var(--red); border: none; border-radius: 8px;
+      color: #fff;
+      font-family: 'Oswald', sans-serif;
+      font-size: 1rem; font-weight: 600;
+      letter-spacing: .1em; text-transform: uppercase;
+      cursor: pointer;
+      transition: background .15s, transform .1s;
+      box-shadow: 0 4px 16px rgba(197,48,48,.35);
+      margin-top: .25rem;
+    }
+    .btn-continue:hover { background: var(--red-dark); }
+    .btn-continue:active { transform: translateY(1px); }
+    .btn-continue:disabled { opacity: .4; cursor: not-allowed; transform: none; }
+
+    .signout {
+      display: block; text-align: center;
+      margin-top: 1rem; font-size: .78rem; color: var(--muted);
+      text-decoration: none; transition: color .15s;
+    }
+    .signout:hover { color: var(--text); }
+
+    .mb-3 { margin-bottom: 1rem; }
+    .mb-4 { margin-bottom: 1.25rem; }
+    .position-relative { position: relative; }
   </style>
 </head>
 <body>
+
+  <div class="page-header">
+    <div class="brand-name">Surus</div>
+    <div class="brand-sep">·</div>
+    <div class="brand-sub">Contact App</div>
+  </div>
+
   <div class="setup-card">
-    <div class="text-center mb-4">
-      <div class="mb-2">
-        {% if current_user.picture %}
-        <img src="{{ current_user.picture }}" class="rounded-circle" width="48" height="48" />
-        {% endif %}
+    <div class="user-row">
+      {% if current_user.picture %}
+      <img src="{{ current_user.picture }}" class="user-avatar" />
+      {% endif %}
+      <div>
+        <div class="user-welcome">Welcome back</div>
+        <div class="user-name">{{ current_user.name }}</div>
       </div>
-      <h5 class="fw-semibold mb-1">Welcome, {{ current_user.name.split()[0] }}!</h5>
-      <p class="text-muted mb-0" style="font-size:.9rem;">Select your NationBuilder nation to continue.</p>
     </div>
 
+    <div class="section-label">Select Your Nation</div>
+    <p style="font-size:.84rem;color:var(--muted);margin-bottom:1.25rem;line-height:1.55;">
+      Choose your NationBuilder nation below. We'll look up your ID automatically.
+    </p>
+
     <div class="mb-3">
-      <label class="form-label fw-semibold" style="font-size:.85rem;">Your nation <span class="text-danger">*</span></label>
+      <label class="form-label">Nation <span>*</span></label>
       <div class="position-relative">
         <input type="text" class="form-control" id="nation_search"
                placeholder="Type a town, area, or nation name…" autocomplete="off" />
-        <div id="nation_results" class="list-group position-absolute w-100 shadow-sm"
-             style="z-index:200;display:none;max-height:220px;overflow-y:auto;top:100%;"></div>
+        <div id="nation_results" class="dropdown-box" style="display:none;"></div>
       </div>
       <input type="hidden" id="nation_slug" />
-      <div id="nation_selected" class="mt-1 text-muted" style="font-size:.8rem;display:none;">
-        Slug: <span id="nation_slug_display" class="fw-semibold text-dark"></span>
+      <div id="nation_selected" style="display:none;">
+        <div class="slug-badge">
+          <svg width="11" height="11" viewBox="0 0 20 20" fill="currentColor">
+            <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/>
+          </svg>
+          <span id="nation_slug_display"></span>
+        </div>
       </div>
     </div>
 
-    <div class="lookup-status mb-3" id="lookup-status"></div>
+    <div class="lookup-box" id="lookup-status"></div>
 
     <div class="mb-4" id="nb-id-row" style="display:none;">
-      <label class="form-label fw-semibold" style="font-size:.85rem;">Your NationBuilder ID</label>
+      <label class="form-label">Your NationBuilder ID</label>
       <input type="text" class="form-control" id="nb_id_input" placeholder="Enter your NB ID" />
-      <div class="form-text" id="nb-id-help"></div>
+      <div class="form-hint" id="nb-id-help"></div>
     </div>
 
-    <button class="btn btn-primary w-100" id="continue-btn" disabled onclick="saveAndContinue()">
-      Continue
+    <button class="btn-continue" id="continue-btn" disabled onclick="saveAndContinue()">
+      Continue →
     </button>
-
-    <div class="text-center mt-3">
-      <a href="/logout" class="text-muted" style="font-size:.8rem;">Sign out</a>
-    </div>
+    <a href="/logout" class="signout">Sign out</a>
   </div>
 
   <script>
@@ -73,7 +248,6 @@
     let selectedNationName = '';
     let nationTimer;
 
-    // Pre-fill from session if returning
     const savedSlug = "{{ default_nation_slug }}";
     const savedName = "{{ default_nation_name }}";
     const savedNbId = "{{ author_nb_id }}";
@@ -86,7 +260,7 @@
       nbIdRow.style.display = 'block';
       if (savedNbId) {
         nbIdInput.value = savedNbId;
-        nbIdHelp.innerHTML = `<span class="text-success">✓ Previously saved</span> — edit to change`;
+        nbIdHelp.innerHTML = `<span class="ok">✓ Previously saved</span> — edit to change`;
         continueBtn.disabled = false;
       }
     }
@@ -94,7 +268,6 @@
     nationSearch.addEventListener('input', () => {
       clearTimeout(nationTimer);
       const val = nationSearch.value.trim();
-      // Clear selection if user is typing a new search
       nationSlugInput.value = '';
       nationSelected.style.display = 'none';
       nbIdRow.style.display = 'none';
@@ -110,24 +283,22 @@
     });
 
     async function runNationSearch(term) {
-      nationResults.innerHTML = '<div class="list-group-item text-muted" style="font-size:.85rem">Searching…</div>';
+      nationResults.innerHTML = '<div class="dropdown-item" style="color:#5a7a96;">Searching…</div>';
       nationResults.style.display = 'block';
       try {
         const resp = await fetch(`/search-nation?term=${encodeURIComponent(term)}`);
         const json = await resp.json();
         nationResults.innerHTML = '';
         if (!json.success || !json.records.length) {
-          nationResults.innerHTML = '<div class="list-group-item text-muted" style="font-size:.85rem">No matches found</div>';
+          nationResults.innerHTML = '<div class="dropdown-item" style="color:#5a7a96;">No matches found</div>';
           return;
         }
         json.records.forEach(r => {
-          const btn = document.createElement('button');
-          btn.type = 'button';
-          btn.className = 'list-group-item list-group-item-action py-2';
-          btn.innerHTML = `
-            <div style="font-size:.9rem;font-weight:500">${r.group}</div>
-            <div class="text-muted" style="font-size:.78rem">${[r.state, r.slug].filter(Boolean).join(' — ')}</div>`;
-          btn.addEventListener('click', () => {
+          const d = document.createElement('div');
+          d.className = 'dropdown-item';
+          d.innerHTML = `<div class="item-main">${r.group}</div>
+            <div class="item-sub">${[r.state, r.slug].filter(Boolean).join(' — ')}</div>`;
+          d.addEventListener('click', () => {
             nationSlugInput.value = r.slug;
             nationSearch.value = r.group;
             selectedNationName = r.group;
@@ -136,43 +307,40 @@
             nationResults.style.display = 'none';
             lookupAuthorId(r.slug);
           });
-          nationResults.appendChild(btn);
+          nationResults.appendChild(d);
         });
       } catch (err) {
-        nationResults.innerHTML = `<div class="list-group-item text-danger" style="font-size:.85rem">Error: ${err.message}</div>`;
+        nationResults.innerHTML = `<div class="dropdown-item" style="color:#f87171;">Error: ${err.message}</div>`;
       }
     }
 
     async function lookupAuthorId(slug) {
-      lookupStatus.innerHTML = `
-        <div class="d-flex align-items-center gap-2 text-muted" style="font-size:.85rem;">
-          <div class="spinner-border spinner-border-sm"></div>
-          Looking up your account in this nation…
-        </div>`;
+      lookupStatus.innerHTML = `<div class="lookup-loading">
+        <svg class="spin" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M21 12a9 9 0 1 1-6.219-8.56"/>
+        </svg>
+        Looking up your account…
+      </div>`;
       nbIdRow.style.display = 'none';
       continueBtn.disabled = true;
-
       try {
         const resp = await fetch(`/get-author-id?nation_slug=${encodeURIComponent(slug)}`);
         const json = await resp.json();
         nbIdRow.style.display = 'block';
-
         if (json.nb_id) {
           nbIdInput.value = json.nb_id;
-          const name = json.name || 'you';
-          lookupStatus.innerHTML = `<div class="alert alert-success py-2 mb-0" style="font-size:.85rem;">✓ Found: <strong>${name}</strong> — NB ID: <strong>${json.nb_id}</strong></div>`;
-          nbIdHelp.innerHTML = `Auto-filled from your Surus account — edit if needed`;
+          lookupStatus.innerHTML = `<div class="alert-ok">✓ Found: <strong>${json.name || 'your account'}</strong> — ID: <strong>${json.nb_id}</strong></div>`;
+          nbIdHelp.innerHTML = `Auto-filled from your account — edit if needed`;
           continueBtn.disabled = false;
         } else {
           nbIdInput.value = '';
-          lookupStatus.innerHTML = `<div class="alert alert-warning py-2 mb-0" style="font-size:.85rem;">Your account wasn't found in this nation — enter your NB ID manually below.</div>`;
-          nbIdHelp.innerHTML = `Enter your NationBuilder person ID for this nation`;
+          lookupStatus.innerHTML = `<div class="alert-warn">Account not found in this nation — enter your NB ID manually.</div>`;
           nbIdInput.focus();
         }
-      } catch (err) {
+      } catch {
         nbIdRow.style.display = 'block';
         nbIdInput.value = '';
-        lookupStatus.innerHTML = `<div class="alert alert-warning py-2 mb-0" style="font-size:.85rem;">Couldn't auto-lookup ID — enter it manually.</div>`;
+        lookupStatus.innerHTML = `<div class="alert-warn">Couldn't auto-lookup ID — enter it manually.</div>`;
       }
     }
 
@@ -184,10 +352,8 @@
       const slug = nationSlugInput.value.trim();
       const nbId = nbIdInput.value.trim();
       if (!slug) { nationSearch.focus(); return; }
-
       continueBtn.disabled = true;
       continueBtn.textContent = 'Saving…';
-
       try {
         await fetch('/setup', {
           method: 'POST',
@@ -197,8 +363,8 @@
         window.location.href = '/';
       } catch (err) {
         continueBtn.disabled = false;
-        continueBtn.textContent = 'Continue';
-        alert('Error saving settings: ' + err.message);
+        continueBtn.textContent = 'Continue →';
+        alert('Error saving: ' + err.message);
       }
     }
   </script>

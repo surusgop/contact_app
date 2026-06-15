@@ -3,92 +3,265 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Import Contact — NationBuilder</title>
-  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" />
+  <title>Import Contact — Surus</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet" />
   <style>
-    body { background: #f4f6f9; }
-    .card { border: none; box-shadow: 0 1px 4px rgba(0,0,0,.1); }
-    .section-label {
-      font-size: .7rem;
-      font-weight: 700;
-      letter-spacing: .08em;
-      text-transform: uppercase;
-      color: #6c757d;
-      margin-bottom: .5rem;
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #0d1823;
+      --surface: #162032;
+      --surface-2: #1e2d40;
+      --gold: #d4a84b;
+      --red: #c53030;
+      --red-dark: #a82828;
+      --text: #dde4ee;
+      --muted: #5a7a96;
+      --border: #253649;
+      --input-bg: #0f1f2e;
     }
-    #result { display: none; }
+
+    body { font-family: 'Inter', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; }
+
+    /* ── Nav ── */
+    .app-nav {
+      background: var(--surface);
+      border-bottom: 2px solid var(--red);
+      padding: .8rem 2rem;
+      display: flex; align-items: center; justify-content: space-between;
+      position: sticky; top: 0; z-index: 100;
+    }
+    .brand { display: flex; align-items: center; gap: .5rem; }
+    .brand-name { font-family: 'Oswald', sans-serif; font-size: 1.15rem; font-weight: 700; color: var(--gold); letter-spacing: .12em; text-transform: uppercase; }
+    .brand-sep { color: var(--red); font-weight: 300; }
+    .brand-sub { font-family: 'Oswald', sans-serif; font-size: .85rem; color: var(--muted); letter-spacing: .1em; text-transform: uppercase; }
+    .nav-right { display: flex; align-items: center; gap: .6rem; }
+    .user-avatar { width: 30px; height: 30px; border-radius: 50%; border: 2px solid var(--border); }
+    .user-name { font-size: .82rem; color: var(--muted); }
+
+    .btn-ghost {
+      background: transparent; border: 1px solid var(--border);
+      border-radius: 6px; color: var(--muted);
+      font-size: .78rem; font-family: 'Inter', sans-serif;
+      padding: .35rem .8rem; cursor: pointer; text-decoration: none;
+      transition: border-color .15s, color .15s;
+    }
+    .btn-ghost:hover { border-color: var(--muted); color: var(--text); }
+    .btn-ghost-red {
+      background: transparent; border: 1px solid rgba(197,48,48,.4);
+      border-radius: 6px; color: var(--red);
+      font-size: .78rem; font-family: 'Inter', sans-serif;
+      padding: .35rem .8rem; cursor: pointer; text-decoration: none;
+      transition: background .15s, border-color .15s;
+    }
+    .btn-ghost-red:hover { background: rgba(197,48,48,.1); border-color: var(--red); }
+
+    /* ── Page ── */
+    .page { max-width: 640px; margin: 0 auto; padding: 2rem 1rem 3rem; }
+    .page-title { font-family: 'Oswald', sans-serif; font-size: 1.6rem; font-weight: 700; color: var(--gold); letter-spacing: .06em; text-transform: uppercase; }
+    .page-sub { font-size: .84rem; color: var(--muted); margin-top: .3rem; }
+
+    /* ── Cards ── */
+    .s-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 1.5rem;
+      margin-top: 1.25rem;
+    }
+    .s-label {
+      font-family: 'Oswald', sans-serif;
+      font-size: .68rem; letter-spacing: .16em;
+      text-transform: uppercase; color: var(--gold);
+      margin-bottom: .9rem;
+    }
+
+    /* ── Form ── */
+    .form-label { font-size: .78rem; font-weight: 500; color: var(--muted); margin-bottom: .35rem; display: block; }
+    .form-label .req { color: var(--red); }
+    .form-group { margin-bottom: .85rem; }
+    .row { display: flex; gap: .85rem; }
+    .col-6 { flex: 1; }
+    .col-12 { width: 100%; }
+
+    .form-control, .form-select {
+      width: 100%;
+      background: var(--input-bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      color: var(--text);
+      font-size: .88rem; font-family: 'Inter', sans-serif;
+      padding: .6rem .9rem;
+      transition: border-color .15s, box-shadow .15s;
+      outline: none;
+      appearance: none; -webkit-appearance: none;
+    }
+    .form-control:focus, .form-select:focus {
+      border-color: var(--red);
+      box-shadow: 0 0 0 3px rgba(197,48,48,.18);
+    }
+    .form-control::placeholder { color: #2d4155; }
+    .form-control[readonly] { color: var(--muted); cursor: default; }
+
+    .form-select {
+      background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3e%3cpath fill='none' stroke='%23d4a84b' stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='m2 5 6 6 6-6'/%3e%3c/svg%3e");
+      background-repeat: no-repeat;
+      background-position: right .75rem center;
+      background-size: 14px;
+      padding-right: 2.25rem;
+    }
+    .form-select option { background: var(--surface-2); color: var(--text); }
+
+    textarea.form-control { resize: vertical; min-height: 90px; }
+
+    /* ── Dropdown ── */
+    .dropdown-wrap { position: relative; }
+    .s-dropdown {
+      position: absolute; top: calc(100% + 4px); left: 0; right: 0;
+      background: var(--surface-2);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      box-shadow: 0 8px 32px rgba(0,0,0,.5);
+      overflow: hidden; z-index: 300;
+    }
+    .s-dropdown .d-item {
+      padding: .6rem 1rem;
+      border-bottom: 1px solid var(--border);
+      cursor: pointer; font-size: .87rem;
+      transition: background .1s;
+    }
+    .s-dropdown .d-item:hover { background: #253649; }
+    .s-dropdown .d-item:last-child { border-bottom: none; }
+    .d-item .d-main { font-weight: 500; color: var(--text); }
+    .d-item .d-sub { font-size: .75rem; color: var(--muted); margin-top: .1rem; }
+    .d-item .d-id { font-size: .72rem; color: #3a5269; margin-top: .1rem; }
+
+    /* ── Slug badge ── */
+    .slug-badge {
+      display: inline-flex; align-items: center; gap: .35rem;
+      background: rgba(212,168,75,.1); border: 1px solid rgba(212,168,75,.3);
+      color: var(--gold); border-radius: 6px;
+      padding: .22rem .65rem; font-size: .76rem; font-weight: 500;
+      margin-top: .4rem;
+    }
+
+    /* ── Submit button ── */
+    .btn-submit {
+      width: 100%; padding: .8rem;
+      background: var(--red); border: none; border-radius: 8px;
+      color: #fff;
+      font-family: 'Oswald', sans-serif;
+      font-size: 1rem; font-weight: 600; letter-spacing: .1em;
+      text-transform: uppercase; cursor: pointer;
+      transition: background .15s, transform .1s;
+      box-shadow: 0 4px 16px rgba(197,48,48,.35);
+      margin-top: 1.25rem;
+    }
+    .btn-submit:hover { background: var(--red-dark); }
+    .btn-submit:active { transform: translateY(1px); }
+    .btn-submit:disabled { opacity: .5; cursor: not-allowed; transform: none; }
+
+    /* ── Result ── */
+    #result { display: none; margin-top: 1rem; }
+    .result-ok {
+      background: rgba(22,163,74,.1); border: 1px solid rgba(22,163,74,.3);
+      border-radius: 10px; padding: 1rem 1.25rem;
+    }
+    .result-err {
+      background: rgba(197,48,48,.1); border: 1px solid rgba(197,48,48,.3);
+      border-radius: 10px; padding: 1rem 1.25rem;
+    }
+    .result-ok p { color: #4ade80; font-weight: 600; margin: 0; font-size: .9rem; }
+    .result-err p { color: #f87171; font-weight: 600; margin: 0; font-size: .9rem; }
+    pre {
+      margin-top: .75rem; padding: .75rem; font-size: .76rem;
+      background: rgba(0,0,0,.3); border-radius: 6px;
+      overflow-x: auto; color: #94a3b8;
+      border: 1px solid var(--border);
+    }
   </style>
 </head>
 <body>
-  <div class="container py-5" style="max-width: 640px;">
-    <div class="d-flex align-items-center justify-content-between mb-3">
-      <div class="d-flex align-items-center gap-2">
-        {% if current_user.picture %}
-        <img src="{{ current_user.picture }}" class="rounded-circle" width="28" height="28" />
-        {% endif %}
-        <span class="text-muted" style="font-size:.85rem;">{{ current_user.name }}</span>
-      </div>
-      <div class="d-flex gap-2">
-        <a href="/setup" class="btn btn-outline-secondary btn-sm">Change nation</a>
-        <a href="/bulk" class="btn btn-outline-primary btn-sm">Bulk Import</a>
-        <a href="/logout" class="btn btn-outline-secondary btn-sm">Sign out</a>
-      </div>
+
+  <!-- Nav -->
+  <nav class="app-nav">
+    <div class="brand">
+      <span class="brand-name">Surus</span>
+      <span class="brand-sep">·</span>
+      <span class="brand-sub">Contact App</span>
     </div>
-    <div class="d-flex align-items-center justify-content-between mb-1">
-      <h4 class="mb-0 fw-semibold">Import Contact</h4>
+    <div class="nav-right">
+      {% if current_user.picture %}
+      <img src="{{ current_user.picture }}" class="user-avatar" />
+      {% endif %}
+      <span class="user-name">{{ current_user.name }}</span>
+      <a href="/setup" class="btn-ghost">Change Nation</a>
+      <a href="/bulk" class="btn-ghost-red">Bulk Import</a>
+      <a href="/logout" class="btn-ghost">Sign Out</a>
     </div>
-    <p class="text-muted mb-4" style="font-size:.9rem;">Log a contact interaction in NationBuilder.</p>
+  </nav>
+
+  <div class="page">
+    <div style="margin-bottom:1.75rem;">
+      <h1 class="page-title">Import Contact</h1>
+      <p class="page-sub">Log a contact interaction in NationBuilder.</p>
+    </div>
 
     <form id="contactForm" novalidate>
 
       <!-- Nation -->
-      <div class="card mb-3 p-3">
-        <div class="section-label">Nation</div>
-        <div class="mb-0">
-          <label class="form-label mb-1" for="nation_search">Search nation <span class="text-danger">*</span></label>
-          <div class="position-relative">
+      <div class="s-card">
+        <div class="s-label">Nation</div>
+        <div class="form-group">
+          <label class="form-label">Search nation <span class="req">*</span></label>
+          <div class="dropdown-wrap">
             <input type="text" class="form-control" id="nation_search"
                    placeholder="Type a town, area, or nation name…" autocomplete="off" />
-            <div id="nation_results"
-                 class="list-group position-absolute w-100 shadow-sm"
-                 style="z-index:200;display:none;max-height:220px;overflow-y:auto;top:100%;"></div>
+            <div id="nation_results" class="s-dropdown" style="display:none;"></div>
           </div>
           <input type="hidden" id="nation_slug" name="nation_slug" />
-          <div id="nation_selected" class="mt-1 text-muted" style="font-size:.8rem;display:none;">
-            Slug: <span id="nation_slug_display" class="fw-semibold text-dark"></span>
+          <div id="nation_selected" style="display:none;">
+            <div class="slug-badge">
+              <svg width="11" height="11" viewBox="0 0 20 20" fill="currentColor">
+                <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/>
+              </svg>
+              <span id="nation_slug_display"></span>
+            </div>
           </div>
         </div>
       </div>
 
-      <!-- Contact details -->
-      <div class="card mb-3 p-3">
-        <div class="section-label">Contact Details</div>
-        <div class="row g-3">
-          <div class="col-12">
-            <label class="form-label mb-1" for="name_search">
-              Search person
-              <span class="text-muted fw-normal" style="font-size:.85rem">(type first + last name)</span>
-            </label>
-            <div class="position-relative">
-              <input type="text" class="form-control" id="name_search"
-                     placeholder="e.g. Jane Smith" autocomplete="off" />
-              <div id="search_results"
-                   class="list-group position-absolute w-100 shadow-sm"
-                   style="z-index:200;display:none;max-height:220px;overflow-y:auto;top:100%;"></div>
-            </div>
+      <!-- Contact Details -->
+      <div class="s-card">
+        <div class="s-label">Contact Details</div>
+
+        <div class="form-group">
+          <label class="form-label">Search person <span style="color:var(--muted);font-weight:400;">(first + last name)</span></label>
+          <div class="dropdown-wrap">
+            <input type="text" class="form-control" id="name_search"
+                   placeholder="e.g. Jane Smith" autocomplete="off" />
+            <div id="search_results" class="s-dropdown" style="display:none;"></div>
           </div>
+        </div>
+
+        <div class="row" style="margin-bottom:.85rem;">
           <div class="col-6">
-            <label class="form-label mb-1" for="signup_id">Signup ID</label>
+            <label class="form-label">Signup ID</label>
             <input type="text" class="form-control" id="signup_id" name="signup_id"
-                   placeholder="Filled by search" readonly style="background:#f8f9fa;" />
+                   placeholder="Filled by search" readonly />
           </div>
           <div class="col-6">
-            <label class="form-label mb-1" for="author_id">Author ID <span class="text-danger">*</span></label>
+            <label class="form-label">Author ID <span class="req">*</span></label>
             <input type="text" class="form-control" id="author_id" name="author_id"
-                   placeholder="NB ID of person logging this" />
+                   placeholder="Your NationBuilder ID" />
           </div>
+        </div>
+
+        <div class="row" style="margin-bottom:.85rem;">
           <div class="col-6">
-            <label class="form-label mb-1" for="contact_method">Contact method</label>
+            <label class="form-label">Contact Method</label>
             <select class="form-select" id="contact_method" name="contact_method">
               <option value="">— select —</option>
               {% for m in contact_methods %}
@@ -97,7 +270,7 @@
             </select>
           </div>
           <div class="col-6">
-            <label class="form-label mb-1" for="contact_status">Contact status</label>
+            <label class="form-label">Contact Status</label>
             <select class="form-select" id="contact_status" name="contact_status">
               <option value="">— select —</option>
               {% for s in contact_statuses %}
@@ -105,22 +278,19 @@
               {% endfor %}
             </select>
           </div>
-          <div class="col-12">
-            <label class="form-label mb-1" for="content">Notes</label>
-            <textarea class="form-control" id="content" name="content" rows="3"
-                      placeholder="Notes about this contact interaction"></textarea>
-          </div>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Notes</label>
+          <textarea class="form-control" id="content" name="content"
+                    placeholder="Notes about this contact interaction"></textarea>
         </div>
       </div>
 
-
-<button type="submit" class="btn btn-primary w-100" id="submitBtn">
-        Import Contact
-      </button>
+      <button type="submit" class="btn-submit" id="submitBtn">Import Contact</button>
     </form>
 
-    <!-- Result -->
-    <div id="result" class="card mt-3 p-3">
+    <div id="result">
       <div id="resultContent"></div>
     </div>
   </div>
@@ -131,40 +301,38 @@
     const result = document.getElementById('result');
     const resultContent = document.getElementById('resultContent');
 
+    // Pre-fill from session
+    window.addEventListener('DOMContentLoaded', () => {
+      const defaultSlug = "{{ default_nation_slug }}";
+      const defaultName = "{{ default_nation_name }}";
+      const defaultAuthorId = "{{ author_nb_id }}";
+      if (defaultSlug && defaultName) {
+        nationSlugInput.value = defaultSlug;
+        nationSearch.value = defaultName;
+        nationSlugDisplay.textContent = defaultSlug;
+        nationSelected.style.display = 'block';
+      }
+      if (defaultAuthorId) {
+        document.getElementById('author_id').value = defaultAuthorId;
+      }
+    });
+
     form.addEventListener('submit', async (e) => {
       e.preventDefault();
-
       const nationSlug = document.getElementById('nation_slug').value.trim();
-      if (!nationSlug) {
-        showResult(false, 'Please select a nation before importing.', null);
-        nationSearch.focus();
-        return;
-      }
-
+      if (!nationSlug) { showResult(false, 'Please select a nation before importing.', null); nationSearch.focus(); return; }
       const signupId = document.getElementById('signup_id').value.trim();
-      if (!signupId) {
-        showResult(false, 'Please search and select a person (Signup ID is required).', null);
-        return;
-      }
-
+      if (!signupId) { showResult(false, 'Please search and select a person (Signup ID is required).', null); return; }
       const authorId = document.getElementById('author_id').value.trim();
-      if (!authorId) {
-        showResult(false, 'Author ID is required — enter the NationBuilder ID of the person logging this contact.', null);
-        document.getElementById('author_id').focus();
-        return;
-      }
+      if (!authorId) { showResult(false, 'Author ID is required.', null); document.getElementById('author_id').focus(); return; }
 
       submitBtn.disabled = true;
       submitBtn.textContent = 'Importing…';
       result.style.display = 'none';
 
       try {
-        const resp = await fetch('/import', {
-          method: 'POST',
-          body: new FormData(form),
-        });
+        const resp = await fetch('/import', { method: 'POST', body: new FormData(form) });
         const json = await resp.json();
-
         if (json.success) {
           const contactId = json.data?.data?.id ?? '—';
           showResult(true, `Contact created successfully. ID: <strong>${contactId}</strong>`, json.data);
@@ -190,49 +358,42 @@
     nationSearch.addEventListener('input', () => {
       clearTimeout(nationTimer);
       const val = nationSearch.value.trim();
-      if (val.length < 2) {
-        nationResults.style.display = 'none';
-        return;
-      }
+      if (val.length < 2) { nationResults.style.display = 'none'; return; }
       nationTimer = setTimeout(() => runNationSearch(val), 300);
     });
 
     document.addEventListener('click', (e) => {
-      if (!nationSearch.contains(e.target) && !nationResults.contains(e.target)) {
-        nationResults.style.display = 'none';
-      }
+      if (!nationSearch.contains(e.target) && !nationResults.contains(e.target)) nationResults.style.display = 'none';
+      if (!nameSearch.contains(e.target) && !searchResults.contains(e.target)) searchResults.style.display = 'none';
     });
 
     async function runNationSearch(term) {
-      nationResults.innerHTML = '<div class="list-group-item text-muted" style="font-size:.85rem">Searching…</div>';
+      nationResults.innerHTML = '<div class="d-item" style="color:#5a7a96;">Searching…</div>';
       nationResults.style.display = 'block';
       try {
         const resp = await fetch(`/search-nation?term=${encodeURIComponent(term)}`);
         const json = await resp.json();
         nationResults.innerHTML = '';
         if (!json.success || !json.records.length) {
-          nationResults.innerHTML = '<div class="list-group-item text-muted" style="font-size:.85rem">No matches found</div>';
+          nationResults.innerHTML = '<div class="d-item" style="color:#5a7a96;">No matches found</div>';
           return;
         }
-        json.records.forEach(record => {
-          const btn = document.createElement('button');
-          btn.type = 'button';
-          btn.className = 'list-group-item list-group-item-action py-2';
-          btn.innerHTML = `
-            <div style="font-size:.9rem;font-weight:500">${record.group}</div>
-            <div class="text-muted" style="font-size:.78rem">${[record.state, record.slug].filter(Boolean).join(' — ')}</div>
-          `;
+        json.records.forEach(r => {
+          const btn = document.createElement('div');
+          btn.className = 'd-item';
+          btn.innerHTML = `<div class="d-main">${r.group}</div>
+            <div class="d-sub">${[r.state, r.slug].filter(Boolean).join(' — ')}</div>`;
           btn.addEventListener('click', () => {
-            nationSlugInput.value = record.slug;
-            nationSearch.value = record.group;
-            nationSlugDisplay.textContent = record.slug;
+            nationSlugInput.value = r.slug;
+            nationSearch.value = r.group;
+            nationSlugDisplay.textContent = r.slug;
             nationSelected.style.display = 'block';
             nationResults.style.display = 'none';
           });
           nationResults.appendChild(btn);
         });
       } catch (err) {
-        nationResults.innerHTML = `<div class="list-group-item text-danger" style="font-size:.85rem">Search error: ${err.message}</div>`;
+        nationResults.innerHTML = `<div class="d-item" style="color:#f87171;">Error: ${err.message}</div>`;
       }
     }
 
@@ -245,34 +406,25 @@
     nameSearch.addEventListener('input', () => {
       clearTimeout(searchTimer);
       const val = nameSearch.value.trim();
-      if (val.length < 2) {
-        searchResults.style.display = 'none';
-        return;
-      }
+      if (val.length < 2) { searchResults.style.display = 'none'; return; }
       searchTimer = setTimeout(() => runSearch(val), 300);
-    });
-
-    document.addEventListener('click', (e) => {
-      if (!nameSearch.contains(e.target) && !searchResults.contains(e.target)) {
-        searchResults.style.display = 'none';
-      }
     });
 
     async function runSearch(name) {
       const slug = document.getElementById('nation_slug').value.trim();
       if (!slug) return;
-      searchResults.innerHTML = '<div class="list-group-item text-muted" style="font-size:.85rem">Searching…</div>';
+      searchResults.innerHTML = '<div class="d-item" style="color:#5a7a96;">Searching…</div>';
       searchResults.style.display = 'block';
       try {
         const resp = await fetch(`/search-signup?name=${encodeURIComponent(name)}&nation_slug=${encodeURIComponent(slug)}`);
         const json = await resp.json();
         searchResults.innerHTML = '';
         if (!json.success) {
-          searchResults.innerHTML = `<div class="list-group-item text-danger" style="font-size:.85rem">${json.error}</div>`;
+          searchResults.innerHTML = `<div class="d-item" style="color:#f87171;">${json.error}</div>`;
           return;
         }
         if (!json.records.length) {
-          searchResults.innerHTML = '<div class="list-group-item text-muted" style="font-size:.85rem">No matches found</div>';
+          searchResults.innerHTML = '<div class="d-item" style="color:#5a7a96;">No matches found</div>';
           return;
         }
         json.records.forEach(record => {
@@ -280,51 +432,31 @@
           const addressLine = [record.address1].filter(Boolean).join('');
           const cityLine = [record.city, record.state, record.zip].filter(Boolean).join(', ');
           const id = record.nb_id ?? '';
-          const btn = document.createElement('button');
-          btn.type = 'button';
-          btn.className = 'list-group-item list-group-item-action py-2';
-          btn.innerHTML = `
-            <div style="font-size:.9rem;font-weight:500">${displayName}</div>
-            ${addressLine ? `<div class="text-muted" style="font-size:.78rem">${addressLine}</div>` : ''}
-            ${cityLine ? `<div class="text-muted" style="font-size:.78rem">${cityLine}</div>` : ''}
-            <div class="text-muted" style="font-size:.75rem">ID: ${id}</div>
-          `;
-          btn.addEventListener('click', () => {
+          const d = document.createElement('div');
+          d.className = 'd-item';
+          d.innerHTML = `<div class="d-main">${displayName}</div>
+            ${addressLine ? `<div class="d-sub">${addressLine}</div>` : ''}
+            ${cityLine ? `<div class="d-sub">${cityLine}</div>` : ''}
+            <div class="d-id">ID: ${id}</div>`;
+          d.addEventListener('click', () => {
             signupIdInput.value = id;
             nameSearch.value = displayName;
             searchResults.style.display = 'none';
           });
-          searchResults.appendChild(btn);
+          searchResults.appendChild(d);
         });
       } catch (err) {
-        searchResults.innerHTML = `<div class="list-group-item text-danger" style="font-size:.85rem">Search error: ${err.message}</div>`;
+        searchResults.innerHTML = `<div class="d-item" style="color:#f87171;">Error: ${err.message}</div>`;
       }
     }
 
-    // Pre-fill from session (set on setup page)
-    window.addEventListener('DOMContentLoaded', () => {
-      const defaultSlug = "{{ default_nation_slug }}";
-      const defaultName = "{{ default_nation_name }}";
-      const defaultAuthorId = "{{ author_nb_id }}";
-      if (defaultSlug && defaultName) {
-        nationSlugInput.value = defaultSlug;
-        nationSearch.value = defaultName;
-        nationSlugDisplay.textContent = defaultSlug;
-        nationSelected.style.display = 'block';
-      }
-      if (defaultAuthorId) {
-        document.getElementById('author_id').value = defaultAuthorId;
-      }
-    });
-
     function showResult(success, message, detail) {
       result.style.display = 'block';
-      result.className = `card mt-3 p-3 border-${success ? 'success' : 'danger'}`;
-
-      let html = `<p class="mb-0 text-${success ? 'success' : 'danger'} fw-semibold">${message}</p>`;
+      let html = `<p>${message}</p>`;
       if (detail) {
-        html += `<pre class="mt-2 mb-0 p-2 bg-light rounded" style="font-size:.8rem;max-height:200px;overflow:auto;">${JSON.stringify(detail, null, 2)}</pre>`;
+        html += `<pre>${JSON.stringify(detail, null, 2)}</pre>`;
       }
+      resultContent.className = success ? 'result-ok' : 'result-err';
       resultContent.innerHTML = html;
       result.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
     }
