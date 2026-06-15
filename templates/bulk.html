@@ -125,7 +125,7 @@
     table { width: 100%; border-collapse: collapse; font-size: .8rem; }
     thead { background: var(--surface-2); }
     th { padding: .6rem .8rem; text-align: left; font-family: 'Oswald', sans-serif; font-size: .7rem; letter-spacing: .1em; text-transform: uppercase; color: var(--gold); border-bottom: 1px solid var(--border); white-space: nowrap; }
-    td { padding: .35rem .5rem; border-bottom: 1px solid var(--border); vertical-align: middle; }
+    td { padding: .35rem .5rem; border-bottom: 1px solid var(--border); vertical-align: top; }
     tbody tr:last-child td { border-bottom: none; }
     tbody tr:hover { background: rgba(255,255,255,.02); }
     td input {
@@ -146,6 +146,8 @@
     }
     .find-btn:hover { background: rgba(212,168,75,.25); }
     .find-btn-ok { background: rgba(22,163,74,.15); border: 1px solid rgba(22,163,74,.3); color: #4ade80; border-radius: 5px; font-size: .7rem; padding: .2rem .55rem; }
+    .del-btn { background: transparent; border: none; color: #3a5269; cursor: pointer; font-size: .85rem; padding: .2rem .45rem; border-radius: 4px; transition: color .15s, background .15s; line-height: 1; }
+    .del-btn:hover { color: #f87171; background: rgba(197,48,48,.12); }
 
     /* ── Lookup dropdown ── */
     .lookup-dropdown {
@@ -510,43 +512,71 @@
         : `<div class="alert-warn"><strong>AI notes:</strong> ${notes}</div>`;
 
       const nbFields = ['signup_id', 'contact_method', 'contact_status', 'contact_date', 'content'];
-      document.getElementById('preview-head').innerHTML = nbFields.map(f => `<th>${f}</th>`).join('');
+      document.getElementById('preview-head').innerHTML =
+        nbFields.map(f => `<th>${f}</th>`).join('') + '<th style="width:32px;"></th>';
 
       const body = document.getElementById('preview-body');
       body.innerHTML = '';
-      data.preview.forEach((row, rowIdx) => {
-        const tr = document.createElement('tr');
-        nbFields.forEach(field => {
-          const td = document.createElement('td');
-          td.style.position = 'relative';
-          if (field === 'signup_id' && !row[field]) {
-            const firstName = row._first_name || '';
-            const lastName = row._last_name || '';
-            const wrapper = document.createElement('div');
-            wrapper.style.cssText = 'display:flex;align-items:center;gap:4px;';
-            const input = document.createElement('input');
-            input.type = 'text'; input.placeholder = 'ID'; input.value = '';
-            input.addEventListener('change', () => { allRows[rowIdx].signup_id = input.value.trim(); });
-            const btn = document.createElement('button');
-            btn.type = 'button'; btn.className = 'find-btn';
-            btn.textContent = `Find ${firstName} ${lastName}`.trim() || 'Find';
-            btn.addEventListener('click', (e) => { e.stopPropagation(); openLookup(btn, input, rowIdx, firstName, lastName); });
-            wrapper.appendChild(input); wrapper.appendChild(btn);
-            td.appendChild(wrapper);
-          } else {
-            const input = document.createElement('input');
-            input.type = 'text'; input.value = row[field] ?? '';
-            input.addEventListener('change', () => { allRows[rowIdx][field] = input.value.trim(); });
-            td.appendChild(input);
-          }
-          tr.appendChild(td);
-        });
-        body.appendChild(tr);
+      allRows.forEach(rowData => renderPreviewRow(body, rowData, nbFields));
+
+      updatePreviewCount();
+      showStep('step-preview');
+    }
+
+    function renderPreviewRow(body, rowData, nbFields) {
+      const tr = document.createElement('tr');
+      nbFields.forEach(field => {
+        const td = document.createElement('td');
+        td.style.position = 'relative';
+        if (field === 'signup_id' && !rowData[field]) {
+          const firstName = rowData._first_name || '';
+          const lastName = rowData._last_name || '';
+          const wrapper = document.createElement('div');
+          wrapper.style.cssText = 'display:flex;align-items:center;gap:4px;';
+          const input = document.createElement('input');
+          input.type = 'text'; input.placeholder = 'ID'; input.value = '';
+          input.addEventListener('change', () => { rowData.signup_id = input.value.trim(); });
+          const btn = document.createElement('button');
+          btn.type = 'button'; btn.className = 'find-btn';
+          btn.textContent = `Find ${firstName} ${lastName}`.trim() || 'Find';
+          btn.addEventListener('click', (e) => { e.stopPropagation(); openLookup(btn, input, rowData, firstName, lastName); });
+          wrapper.appendChild(input); wrapper.appendChild(btn);
+          td.appendChild(wrapper);
+        } else if (field === 'content') {
+          const ta = document.createElement('textarea');
+          ta.value = rowData[field] ?? '';
+          ta.rows = 2;
+          ta.style.cssText = 'background:transparent;border:none;color:var(--text);font-size:.8rem;font-family:Inter,sans-serif;padding:.2rem .3rem;width:100%;outline:none;resize:vertical;min-height:2.5rem;';
+          ta.addEventListener('focus', () => { ta.style.background='rgba(197,48,48,.1)'; ta.style.outline='1px solid var(--red)'; ta.style.borderRadius='4px'; });
+          ta.addEventListener('blur', () => { ta.style.background='transparent'; ta.style.outline='none'; rowData[field] = ta.value.trim(); });
+          td.appendChild(ta);
+        } else {
+          const input = document.createElement('input');
+          input.type = 'text'; input.value = rowData[field] ?? '';
+          input.addEventListener('change', () => { rowData[field] = input.value.trim(); });
+          td.appendChild(input);
+        }
+        tr.appendChild(td);
       });
 
-      document.getElementById('preview-count').textContent = `(showing ${data.preview.length} of ${data.total_rows} rows)`;
-      document.getElementById('import-count').textContent = data.total_rows;
-      showStep('step-preview');
+      const delTd = document.createElement('td');
+      const delBtn = document.createElement('button');
+      delBtn.type = 'button'; delBtn.className = 'del-btn'; delBtn.title = 'Remove row';
+      delBtn.textContent = '✕';
+      delBtn.addEventListener('click', () => {
+        const idx = allRows.indexOf(rowData);
+        if (idx !== -1) allRows.splice(idx, 1);
+        tr.remove();
+        updatePreviewCount();
+      });
+      delTd.appendChild(delBtn);
+      tr.appendChild(delTd);
+      body.appendChild(tr);
+    }
+
+    function updatePreviewCount() {
+      document.getElementById('preview-count').textContent = `(${allRows.length} row${allRows.length !== 1 ? 's' : ''})`;
+      document.getElementById('import-count').textContent = allRows.length;
     }
 
     document.addEventListener('click', () => closeActiveLookup());
@@ -555,7 +585,7 @@
       if (activeLookupDropdown) { activeLookupDropdown.remove(); activeLookupDropdown = null; }
     }
 
-    async function openLookup(btn, idInput, rowIdx, firstName, lastName) {
+    async function openLookup(btn, idInput, rowData, firstName, lastName) {
       closeActiveLookup();
       const slug = nationSlugInput.value.trim();
       const dropdown = document.createElement('div');
@@ -591,7 +621,7 @@
           item.addEventListener('click', (e) => {
             e.stopPropagation();
             idInput.value = p.nb_id;
-            allRows[rowIdx].signup_id = p.nb_id;
+            rowData.signup_id = p.nb_id;
             btn.textContent = '✓';
             btn.className = 'find-btn-ok';
             closeActiveLookup();
