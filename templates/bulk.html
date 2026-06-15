@@ -286,7 +286,7 @@
 
       <div class="s-card">
         <div class="s-label">Import Options</div>
-        <div class="row-2">
+        <div class="row-2" style="margin-bottom:.85rem;">
           <div class="col-half">
             <label class="form-label">Default Author ID <span style="color:var(--red);">*</span></label>
             <input type="text" class="form-control" id="default_author_id" placeholder="Your NationBuilder ID" />
@@ -296,6 +296,13 @@
             <label class="form-label">Imported by</label>
             <input type="text" class="form-control" id="imported_by" placeholder="Your name" />
             <div class="form-text">Stamped on every contact note with timestamp.</div>
+          </div>
+        </div>
+        <div class="row-2">
+          <div class="col-half">
+            <label class="form-label">Default Date Contacted <span style="color:var(--muted);font-weight:400;">(optional)</span></label>
+            <input type="date" class="form-control" id="default_contact_date" />
+            <div class="form-text">Applied to rows that don't already have a date.</div>
           </div>
         </div>
       </div>
@@ -644,7 +651,12 @@
       const authorId = document.getElementById('default_author_id').value.trim();
       if (!authorId) { alert('Please enter a default Author ID.'); return; }
       const importedBy = document.getElementById('imported_by').value.trim();
-      const rows = allRows.map(r => ({ ...r, author_id: r.author_id || authorId }));
+      const defaultDate = document.getElementById('default_contact_date').value.trim();
+      const rows = allRows.map(r => ({
+        ...r,
+        author_id: r.author_id || authorId,
+        contact_date: r.contact_date || defaultDate || '',
+      }));
       const btn = document.getElementById('import-btn');
       btn.disabled = true;
       btn.innerHTML = '<span class="spinner"></span>Importing…';
@@ -663,6 +675,35 @@
       }
     }
 
+    function friendlyError(e) {
+      const detail = e.detail;
+      // Try to extract a human-readable message from NB's error response
+      if (detail && typeof detail === 'object') {
+        const errs = detail.errors || detail.error || detail.message;
+        if (Array.isArray(errs)) {
+          return errs.map(err => {
+            const field = err.source?.pointer?.split('/').pop() || err.title || '';
+            const msg = err.detail || err.title || JSON.stringify(err);
+            if (field === 'signup_id' || msg.toLowerCase().includes('signup'))
+              return `Missing or invalid person ID — make sure the NationBuilder ID is correct.`;
+            if (field === 'contact_method' || msg.toLowerCase().includes('method'))
+              return `Invalid contact method — must be one of: phone_call, email, door_knock, text, etc.`;
+            if (field === 'contact_status' || msg.toLowerCase().includes('status'))
+              return `Invalid contact status — must be one of: answered, no_answer, meaningful_interaction, etc.`;
+            return msg;
+          }).join(' ');
+        }
+        if (typeof errs === 'string') return errs;
+      }
+      // Fallback: strip URL from the HTTP error message
+      const msg = e.error || '';
+      if (msg.includes('400')) return `Bad request — check that the person ID exists in NationBuilder and all required fields are filled in.`;
+      if (msg.includes('401') || msg.includes('403')) return `Authentication error — the nation token may have expired.`;
+      if (msg.includes('404')) return `Person not found — the NationBuilder ID may be wrong or not in this nation.`;
+      if (msg.includes('422')) return `Invalid data — one or more fields have an unrecognized value.`;
+      return msg || 'Unknown error';
+    }
+
     function showResults(results) {
       const content = document.getElementById('results-content');
       let html = `
@@ -672,9 +713,12 @@
           <div class="stat-err"><span>${results.failed}</span><div class="stat-label">Failed</div></div>
         </div>`;
       if (results.errors.length) {
-        html += `<div class="s-label" style="margin:.75rem 0 .5rem;">Errors</div>
-          <div style="max-height:200px;overflow-y:auto;">
-          ${results.errors.map(e => `<div class="error-row">Row ${e.row}: ${e.error}</div>`).join('')}
+        html += `<div class="s-label" style="margin:.75rem 0 .5rem;">Failed Rows</div>
+          <div style="max-height:280px;overflow-y:auto;">
+          ${results.errors.map(e => `
+            <div class="error-row">
+              <strong>Row ${e.row}:</strong> ${friendlyError(e)}
+            </div>`).join('')}
           </div>`;
       }
       content.innerHTML = html;

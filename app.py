@@ -1049,49 +1049,64 @@ def parse_upload(file) -> pd.DataFrame:
             return pd.DataFrame({"text": text.splitlines()})
 
 
-def ai_map_and_clean(columns: list, all_rows: list) -> dict:
-    prompt = f"""You are a data cleaning and mapping assistant. Your job is to convert uploaded contact data into clean NationBuilder contact records.
+def _apply_mapping_locally(column_mapping: dict, all_rows: list) -> list:
+    methods_map = {m.replace("_", " "): m for m in CONTACT_METHODS}
+    methods_map.update({m: m for m in CONTACT_METHODS})
+    statuses_map = {s.replace("_", " "): s for s in CONTACT_STATUSES}
+    statuses_map.update({s: s for s in CONTACT_STATUSES})
+    date_fmts = ("%Y-%m-%d", "%m/%d/%Y", "%m/%d/%y", "%d/%m/%Y",
+                 "%B %d, %Y", "%b %d, %Y", "%Y/%m/%d")
+    result = []
+    for raw in all_rows:
+        row = {}
+        for src, nb in column_mapping.items():
+            if not nb:
+                continue
+            val = str(raw.get(src, "") or "").strip()
+            if not val:
+                continue
+            if nb in ("signup_id", "author_id"):
+                digits = "".join(c for c in val if c.isdigit())
+                if digits:
+                    row[nb] = digits
+            elif nb == "contact_method":
+                key = val.lower().replace("-", "_").replace(" ", "_")
+                row[nb] = methods_map.get(val.lower(), methods_map.get(key, key))
+            elif nb == "contact_status":
+                key = val.lower().replace("-", "_").replace(" ", "_")
+                row[nb] = statuses_map.get(val.lower(), statuses_map.get(key, key))
+            elif nb == "contact_date":
+                parsed = None
+                for fmt in date_fmts:
+                    try:
+                        parsed = datetime.strptime(val, fmt).strftime("%Y-%m-%d")
+                        break
+                    except Exception:
+                        pass
+                row[nb] = parsed or val
+            else:
+                row[nb] = val
+        result.append(row)
+    return result
 
-Valid NationBuilder contact fields:
-- signup_id: the NationBuilder person ID being contacted (digits only, no extra text)
-- author_id: the NationBuilder ID of who logged the contact (digits only)
-- contact_method: must be exactly one of {json.dumps(CONTACT_METHODS)}
-- contact_status: must be exactly one of {json.dumps(CONTACT_STATUSES)}
-- contact_date: the date the person was actually contacted (normalize to YYYY-MM-DD; map from "date", "date contacted", "contact date", "date of contact", etc.)
-- content: free text notes about the interaction
+
+def ai_map_and_clean(columns: list, all_rows: list) -> dict:
+    sample = all_rows[:6]
+    prompt = f"""Map these source columns to NationBuilder contact fields.
+
+Valid NB fields: signup_id (digits only), author_id (digits only), contact_method (one of: {json.dumps(CONTACT_METHODS)}), contact_status (one of: {json.dumps(CONTACT_STATUSES)}), contact_date (YYYY-MM-DD), content (free text), _first_name, _last_name (for lookup — not NB fields).
 
 Source columns: {json.dumps(columns)}
+Sample rows: {json.dumps(sample)}
 
-All rows to clean and convert: {json.dumps(all_rows)}
-
-Instructions:
-1. Map each source column to the appropriate NationBuilder field using common sense (e.g. "Method" → contact_method, "NB ID" → signup_id).
-2. Fix ANY data quality issues you find — truncated values, merged fields, extra text in ID columns, inconsistent casing, etc. Use common sense: if signup_id contains "ction 2855313", the real ID is "2855313". If contact_status says "Meaningful Intera", fix it to "meaningful_interaction".
-3. Normalize contact_method and contact_status values to valid NationBuilder equivalents (e.g. "Phone Call" → "phone_call", "No Answer" → "no_answer", "Meaningful Interaction" → "meaningful_interaction").
-4. For first_name and last_name columns: do NOT map them as NationBuilder fields, but DO include them in each row as "_first_name" and "_last_name" so they can be used for person lookup when signup_id is missing.
-5. Return one cleaned record per input row.
-
-Return ONLY a JSON object:
-{{
-  "column_mapping": {{"source_column": "nb_field_or_null"}},
-  "cleaned_rows": [
-    {{"signup_id": "...", "_first_name": "...", "_last_name": "...", "contact_method": "...", "contact_status": "...", "contact_date": "YYYY-MM-DD or empty", "content": "..."}},
-    ...
-  ],
-  "notes": "brief summary of fixes applied"
-}}"""
+Return ONLY JSON (no markdown):
+{{"column_mapping": {{"source_column": "nb_field_or_null"}}, "notes": "one line summary"}}"""
 
     resp = requests.post(
         "https://openrouter.ai/api/v1/chat/completions",
-        headers={
-            "Authorization": f"Bearer {OPENROUTER_API_KEY}",
-            "Content-Type": "application/json",
-        },
-        json={
-            "model": "minimax/minimax-m3",
-            "messages": [{"role": "user", "content": prompt}],
-        },
-        timeout=60,
+        headers={"Authorization": f"Bearer {OPENROUTER_API_KEY}", "Content-Type": "application/json"},
+        json={"model": "openai/gpt-4o-mini", "messages": [{"role": "user", "content": prompt}]},
+        timeout=30,
     )
     resp.raise_for_status()
     content = resp.json()["choices"][0]["message"]["content"].strip()
@@ -1099,7 +1114,9 @@ Return ONLY a JSON object:
         content = content.split("```")[1]
         if content.startswith("json"):
             content = content[4:]
-    return json.loads(content.strip())
+    mapping = json.loads(content.strip())
+    mapping["cleaned_rows"] = _apply_mapping_locally(mapping.get("column_mapping", {}), all_rows)
+    return mapping
 
 
 @app.route("/bulk")
