@@ -541,8 +541,13 @@
         const td = document.createElement('td');
         td.style.position = 'relative';
         if (field === 'signup_id' && !rowData[field]) {
-          const firstName = rowData._first_name || '';
-          const lastName = rowData._last_name || '';
+          let firstName = rowData._first_name || '';
+          let lastName = rowData._last_name || '';
+          if (!firstName && !lastName && rowData._full_name) {
+            const parts = rowData._full_name.trim().split(/\s+/);
+            firstName = parts[0] || '';
+            lastName = parts.slice(1).join(' ') || '';
+          }
           const wrapper = document.createElement('div');
           wrapper.style.cssText = 'display:flex;align-items:center;gap:4px;';
           const input = document.createElement('input');

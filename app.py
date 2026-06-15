@@ -1084,6 +1084,10 @@ def _apply_mapping_locally(column_mapping: dict, all_rows: list) -> list:
                     except Exception:
                         pass
                 row[nb] = parsed or val
+            elif nb == "_full_name":
+                parts = val.split(None, 1)
+                row["_first_name"] = parts[0] if parts else ""
+                row["_last_name"] = parts[1] if len(parts) > 1 else ""
             else:
                 row[nb] = val
         result.append(row)
@@ -1094,7 +1098,18 @@ def ai_map_and_clean(columns: list, all_rows: list) -> dict:
     sample = all_rows[:6]
     prompt = f"""Map these source columns to NationBuilder contact fields.
 
-Valid NB fields: signup_id (digits only), author_id (digits only), contact_method (one of: {json.dumps(CONTACT_METHODS)}), contact_status (one of: {json.dumps(CONTACT_STATUSES)}), contact_date (YYYY-MM-DD), content (free text), _first_name, _last_name (for lookup — not NB fields).
+Valid NB fields:
+- signup_id: NationBuilder person ID (digits only)
+- author_id: NationBuilder ID of who logged the contact (digits only)
+- contact_method: one of {json.dumps(CONTACT_METHODS)}
+- contact_status: one of {json.dumps(CONTACT_STATUSES)}
+- contact_date: date contacted, normalize to YYYY-MM-DD
+- content: free-text notes
+
+Name handling (IMPORTANT — do NOT mark name columns as null):
+- Full name column (e.g. "Name", "Full Name", "Contact") → use "_full_name"
+- First name only → use "_first_name"
+- Last name only → use "_last_name"
 
 Source columns: {json.dumps(columns)}
 Sample rows: {json.dumps(sample)}
