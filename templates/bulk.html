@@ -443,38 +443,21 @@
 
       const status = document.getElementById('upload-status');
       status.style.display = 'block';
-      status.innerHTML = `<div class="alert-info"><span class="spinner"></span>Processing ${selectedFiles.length} file${selectedFiles.length > 1 ? 's' : ''} with AI…</div>`;
+      status.innerHTML = `<div class="alert-info"><span class="spinner"></span>Processing ${selectedFiles.length} file${selectedFiles.length > 1 ? 's' : ''} in parallel with AI…</div>`;
 
-      const allResults = [];
-      let anyError = false;
+      // Mark all files as processing immediately
+      selectedFiles.forEach((_, i) => setFileStatus(i, 'status-processing', '⟳ Processing…'));
 
-      for (let i = 0; i < selectedFiles.length; i++) {
-        const file = selectedFiles[i];
-        setFileStatus(i, 'status-processing', '⟳ Processing…');
-        try {
-          const fd = new FormData();
-          fd.append('file', file);
-          const resp = await fetch('/bulk/upload', { method: 'POST', body: fd });
-          const json = await resp.json();
-          if (!json.success) {
-            setFileStatus(i, 'status-error', `✗ ${json.error}`);
-            anyError = true;
-          } else {
-            setFileStatus(i, 'status-done', `✓ ${json.total_rows} row${json.total_rows !== 1 ? 's' : ''}`);
-            allResults.push(json);
-          }
-        } catch (err) {
-          setFileStatus(i, 'status-error', `✗ ${err.message}`);
-          anyError = true;
-        }
-      }
+      // Fire all uploads in parallel
+      const settled = await Promise.all(selectedFiles.map((file, i) => uploadOne(file, i)));
+      const allResults = settled.filter(Boolean);
+      const anyError = settled.some(r => r === null);
 
       if (!allResults.length) {
         status.innerHTML = '<div class="alert-err">All files failed to process.</div>';
         return;
       }
 
-      // Merge results from all files
       const merged = mergeUploadResults(allResults);
       allRows = merged.all_rows;
 
@@ -483,6 +466,24 @@
         : `<div class="alert-ok">✓ All files processed — ${allRows.length} total rows ready.</div>`;
 
       showPreview(merged);
+    }
+
+    async function uploadOne(file, i) {
+      try {
+        const fd = new FormData();
+        fd.append('file', file);
+        const resp = await fetch('/bulk/upload', { method: 'POST', body: fd });
+        const json = await resp.json();
+        if (!json.success) {
+          setFileStatus(i, 'status-error', `✗ ${json.error}`);
+          return null;
+        }
+        setFileStatus(i, 'status-done', `✓ ${json.total_rows} row${json.total_rows !== 1 ? 's' : ''}`);
+        return json;
+      } catch (err) {
+        setFileStatus(i, 'status-error', `✗ ${err.message}`);
+        return null;
+      }
     }
 
     function mergeUploadResults(results) {
