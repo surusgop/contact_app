@@ -70,9 +70,8 @@ CONTACT_METHODS = [
     "webinar", "linkedin", "other",
 ]
 CONTACT_STATUSES = [
-    "answered", "bad_info", "left_message", "meaningful_interaction",
-    "send_information", "not_interested", "no_answer", "refused",
-    "inaccessible", "other",
+    "answered", "no_answer", "voicemail", "meaningful_interaction",
+    "not_interested", "wrong_number", "other",
 ]
 
 _NICKNAME_GROUPS = [
@@ -1050,21 +1049,27 @@ def parse_upload(file) -> pd.DataFrame:
 
 
 _STATUS_ALIASES = {
+    # no_answer variants
     "no_response": "no_answer", "no response": "no_answer",
     "did not answer": "no_answer", "unanswered": "no_answer",
     "no_answer": "no_answer", "no answer": "no_answer",
-    "left_message": "left_message", "left message": "left_message",
-    "voicemail": "left_message", "vm": "left_message",
+    # voicemail / left message variants
+    "left_message": "voicemail", "left message": "voicemail",
+    "voicemail": "voicemail", "vm": "voicemail",
+    # meaningful_interaction
     "meaningful_interaction": "meaningful_interaction",
     "meaningful interaction": "meaningful_interaction",
     "meaningful": "meaningful_interaction",
-    "bad_info": "bad_info", "bad info": "bad_info",
-    "wrong number": "bad_info", "bad number": "bad_info",
-    "send_information": "send_information", "send information": "send_information",
-    "info requested": "send_information",
+    # wrong_number (was bad_info)
+    "bad_info": "wrong_number", "bad info": "wrong_number",
+    "wrong number": "wrong_number", "bad number": "wrong_number",
+    "wrong_number": "wrong_number",
+    # not_interested (refused → not_interested; inaccessible → other)
+    "send_information": "other", "send information": "other",
+    "info requested": "other",
     "not_interested": "not_interested", "not interested": "not_interested",
-    "refused": "refused", "hung up": "refused",
-    "inaccessible": "inaccessible", "no access": "inaccessible",
+    "refused": "not_interested", "hung up": "not_interested",
+    "inaccessible": "other", "no access": "other",
     "answered": "answered",
     "other": "other",
 }
@@ -1243,6 +1248,17 @@ def bulk_import():
     for i, row in enumerate(rows):
         attributes = {k: v for k, v in row.items()
                       if k in ("contact_method", "contact_status", "content")}
+
+        # Re-normalize method/status in case the user edited the preview table
+        for field, aliases, valid_list in [
+            ("contact_method", _METHOD_ALIASES, CONTACT_METHODS),
+            ("contact_status", _STATUS_ALIASES, CONTACT_STATUSES),
+        ]:
+            val = attributes.get(field, "")
+            if val:
+                key = val.lower().replace("-", "_").replace(" ", "_")
+                resolved = aliases.get(val.lower(), aliases.get(key, val))
+                attributes[field] = resolved if resolved in valid_list else "other"
 
         # Build content: date contacted (if present) → user notes → import stamp
         parts = []
