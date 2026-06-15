@@ -51,10 +51,16 @@ _users = {}
 def load_user(user_id):
     return _users.get(user_id)
 
-db = WorkspaceClient(
-    host=os.getenv("DATABRICKS_HOST"),
-    token=os.getenv("DATABRICKS_TOKEN"),
-)
+_db = None
+def get_db():
+    global _db
+    if _db is None:
+        _db = WorkspaceClient(
+            host=os.getenv("DATABRICKS_HOST"),
+            token=os.getenv("DATABRICKS_TOKEN"),
+        )
+    return _db
+
 WAREHOUSE_ID = os.getenv("DATABRICKS_WAREHOUSE_ID", "")
 
 CONTACT_METHODS = [
@@ -645,7 +651,7 @@ def get_name_variants(name: str) -> list:
 
 
 def get_nb_token(nation_slug: str) -> str:
-    secret_key = db.secrets.get_secret(scope="api", key="surus_server_nb_secret").value
+    secret_key = get_db().secrets.get_secret(scope="api", key="surus_server_nb_secret").value
     resp = requests.get(
         f"https://server.surusenterprises.com/auth/api_token/{nation_slug}",
         headers={"x-api-key": secret_key},
@@ -658,7 +664,7 @@ def load_all_nations():
     if not WAREHOUSE_ID:
         return []
     try:
-        result = db.statement_execution.execute_statement(
+        result = get_db().statement_execution.execute_statement(
             warehouse_id=WAREHOUSE_ID,
             statement="SELECT `group`, slug, state FROM universal.nb.source_nation_table ORDER BY `group`",
             wait_timeout="30s",
@@ -680,7 +686,7 @@ def ensure_log_table():
     if not WAREHOUSE_ID:
         return
     try:
-        db.statement_execution.execute_statement(
+        get_db().statement_execution.execute_statement(
             warehouse_id=WAREHOUSE_ID,
             statement="""
                 CREATE TABLE IF NOT EXISTS universal.logging.contact_app_logs (
@@ -708,7 +714,7 @@ def log_action(action: str, user_email: str, user_name: str,
         if not WAREHOUSE_ID:
             return
         try:
-            db.statement_execution.execute_statement(
+            get_db().statement_execution.execute_statement(
                 warehouse_id=WAREHOUSE_ID,
                 statement="""
                     INSERT INTO universal.logging.contact_app_logs
@@ -756,7 +762,7 @@ def get_author_id():
     if not nation_slug or not WAREHOUSE_ID:
         return jsonify({"success": False, "nb_id": None})
     try:
-        result = db.statement_execution.execute_statement(
+        result = get_db().statement_execution.execute_statement(
             warehouse_id=WAREHOUSE_ID,
             statement="""
                 SELECT nb_id, full_name, first_name, last_name
@@ -820,7 +826,7 @@ def search_by_name():
     first_lower = first_clean.lower()
 
     def run_query(statement, params):
-        result = db.statement_execution.execute_statement(
+        result = get_db().statement_execution.execute_statement(
             warehouse_id=WAREHOUSE_ID,
             statement=statement,
             parameters=params,
@@ -898,7 +904,7 @@ def search_signup():
         return jsonify({"success": False, "error": "DATABRICKS_WAREHOUSE_ID not configured"}), 500
 
     try:
-        result = db.statement_execution.execute_statement(
+        result = get_db().statement_execution.execute_statement(
             warehouse_id=WAREHOUSE_ID,
             statement="""
                 SELECT nb_id, first_name, last_name, full_name,
