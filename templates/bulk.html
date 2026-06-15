@@ -335,6 +335,10 @@
       if (defaultAuthorId) {
         document.getElementById('default_author_id').value = defaultAuthorId;
       }
+      const userName = "{{ current_user.name }}";
+      if (userName) {
+        document.getElementById('imported_by').value = userName;
+      }
     });
 
     // ── Nation search ──────────────────────────────────────────────
