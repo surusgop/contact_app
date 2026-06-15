@@ -1,6 +1,7 @@
 import os
 import io
 import json
+import base64
 import threading
 import requests
 import urllib3
@@ -929,6 +930,46 @@ def search_signup():
 OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY", "")
 
 
+def parse_image_with_ai(raw: bytes, filename: str) -> pd.DataFrame:
+    mime_map = {
+        "jpg": "image/jpeg", "jpeg": "image/jpeg", "png": "image/png",
+        "gif": "image/gif", "bmp": "image/bmp", "webp": "image/webp", "tiff": "image/tiff",
+    }
+    ext = filename.lower().rsplit(".", 1)[-1]
+    mime = mime_map.get(ext, "image/png")
+    b64 = base64.b64encode(raw).decode("utf-8")
+    resp = requests.post(
+        "https://openrouter.ai/api/v1/chat/completions",
+        headers={"Authorization": f"Bearer {OPENROUTER_API_KEY}", "Content-Type": "application/json"},
+        json={
+            "model": "google/gemini-2.0-flash-exp:free",
+            "messages": [{
+                "role": "user",
+                "content": [
+                    {"type": "image_url", "image_url": {"url": f"data:{mime};base64,{b64}"}},
+                    {"type": "text", "text": (
+                        "Extract all contact or person data visible in this image into a JSON array of objects. "
+                        "Each person/row should be one object with column headers as keys. "
+                        "Include every column you can see: name, phone, email, address, date contacted, notes, IDs, etc. "
+                        "Return ONLY a valid JSON array — no markdown, no code fences, no explanation."
+                    )},
+                ],
+            }],
+        },
+        timeout=90,
+    )
+    resp.raise_for_status()
+    content = resp.json()["choices"][0]["message"]["content"].strip()
+    if content.startswith("```"):
+        content = content.split("```")[1]
+        if content.startswith("json"):
+            content = content[4:]
+    data = json.loads(content.strip())
+    if isinstance(data, list) and data:
+        return pd.DataFrame(data)
+    return pd.DataFrame({"extracted": ["No structured data found in image"]})
+
+
 def parse_upload(file) -> pd.DataFrame:
     name = file.filename.lower()
     raw = file.read()
@@ -987,6 +1028,8 @@ def parse_upload(file) -> pd.DataFrame:
             return pd.DataFrame({"text": [l for l in text.splitlines() if l.strip()]})
         except ImportError:
             return pd.DataFrame({"error": ["Install pdfplumber to parse PDFs: pip install pdfplumber"]})
+    elif any(name.endswith(f".{ext}") for ext in ("png", "jpg", "jpeg", "gif", "bmp", "webp", "tiff")):
+        return parse_image_with_ai(raw, file.filename)
     else:
         try:
             return pd.read_csv(io.BytesIO(raw))
@@ -1003,6 +1046,7 @@ Valid NationBuilder contact fields:
 - author_id: the NationBuilder ID of who logged the contact (digits only)
 - contact_method: must be exactly one of {json.dumps(CONTACT_METHODS)}
 - contact_status: must be exactly one of {json.dumps(CONTACT_STATUSES)}
+- contact_date: the date the person was actually contacted (normalize to YYYY-MM-DD; map from "date", "date contacted", "contact date", "date of contact", etc.)
 - content: free text notes about the interaction
 
 Source columns: {json.dumps(columns)}
@@ -1020,7 +1064,7 @@ Return ONLY a JSON object:
 {{
   "column_mapping": {{"source_column": "nb_field_or_null"}},
   "cleaned_rows": [
-    {{"signup_id": "...", "_first_name": "...", "_last_name": "...", "contact_method": "...", "contact_status": "...", "content": "..."}},
+    {{"signup_id": "...", "_first_name": "...", "_last_name": "...", "contact_method": "...", "contact_status": "...", "contact_date": "YYYY-MM-DD or empty", "content": "..."}},
     ...
   ],
   "notes": "brief summary of fixes applied"
@@ -1110,12 +1154,21 @@ def bulk_import():
     for i, row in enumerate(rows):
         attributes = {k: v for k, v in row.items()
                       if k in ("contact_method", "contact_status", "content")}
+
+        # Build content: date contacted (if present) → user notes → import stamp
+        parts = []
+        contact_date = str(row.get("contact_date", "") or "").strip()
+        if contact_date:
+            try:
+                formatted_date = datetime.strptime(contact_date, "%Y-%m-%d").strftime("%B %d, %Y")
+            except Exception:
+                formatted_date = contact_date
+            parts.append(f"Date Contacted: {formatted_date}")
         existing_content = attributes.get("content", "") or ""
         if existing_content:
-            attributes["content"] = f"{existing_content}\n\n{import_tag.strip()}"
-        else:
-            attributes["content"] = import_tag.strip()
-        print(f"DEBUG row {i+1} content: {attributes['content'][:80]}")
+            parts.append(existing_content)
+        parts.append(import_tag.strip())
+        attributes["content"] = "\n\n".join(parts)
         relationships = {}
         for field, rel in [("signup_id", "signup"), ("author_id", "author")]:
             if row.get(field):
@@ -1208,9 +1261,20 @@ def import_contact():
     if path_step:
         relationships["path_step"] = {"data": {"type": "path_steps", "id": path_step}}
 
+    # Build content: date contacted (if provided) → user notes
     content = form.get("content", "").strip()
+    contact_date = form.get("contact_date", "").strip()
+    content_parts = []
+    if contact_date:
+        try:
+            formatted_date = datetime.strptime(contact_date, "%Y-%m-%d").strftime("%B %d, %Y")
+        except Exception:
+            formatted_date = contact_date
+        content_parts.append(f"Date Contacted: {formatted_date}")
     if content:
-        attributes["content"] = content
+        content_parts.append(content)
+    if content_parts:
+        attributes["content"] = "\n\n".join(content_parts)
 
     for field in ["contact_status", "contact_method"]:
         val = form.get(field, "").strip()

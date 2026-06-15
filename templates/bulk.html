@@ -241,7 +241,7 @@
         <div class="drop-zone" id="drop-zone" onclick="document.getElementById('file-input').click()">
           <div class="drop-icon">📂</div>
           <div class="drop-title">Drop a file or click to browse</div>
-          <div class="drop-sub">CSV, Excel, Word, TXT, PDF, JSON — any format</div>
+          <div class="drop-sub">CSV, Excel, Word, TXT, PDF, JSON, Images (PNG, JPG, etc.) — any format</div>
         </div>
         <input type="file" id="file-input" style="display:none;" />
         <div id="selected-file" style="display:none;">
@@ -440,7 +440,7 @@
         ? `<div class="alert-ok">✓ No issues detected — data looks clean.</div>`
         : `<div class="alert-warn"><strong>AI notes:</strong> ${notes}</div>`;
 
-      const nbFields = ['signup_id', 'contact_method', 'contact_status', 'content'];
+      const nbFields = ['signup_id', 'contact_method', 'contact_status', 'contact_date', 'content'];
       document.getElementById('preview-head').innerHTML = nbFields.map(f => `<th>${f}</th>`).join('');
 
       const body = document.getElementById('preview-body');
