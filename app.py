@@ -1050,16 +1050,21 @@ def parse_upload(file) -> pd.DataFrame:
 
 
 _STATUS_ALIASES = {
+    # no_answer variants
     "no_response": "no_answer", "no response": "no_answer",
     "did not answer": "no_answer", "unanswered": "no_answer",
     "no_answer": "no_answer", "no answer": "no_answer",
+    # left_message / voicemail variants (NB calls it left_message)
     "left_message": "left_message", "left message": "left_message",
     "voicemail": "left_message", "vm": "left_message",
+    # meaningful_interaction
     "meaningful_interaction": "meaningful_interaction",
     "meaningful interaction": "meaningful_interaction",
     "meaningful": "meaningful_interaction",
+    # bad_info (wrong number, bad contact info)
     "bad_info": "bad_info", "bad info": "bad_info",
-    "wrong number": "bad_info", "bad number": "bad_info",
+    "wrong number": "bad_info", "bad number": "bad_info", "wrong_number": "bad_info",
+    # other catch-alls
     "send_information": "send_information", "send information": "send_information",
     "info requested": "send_information",
     "not_interested": "not_interested", "not interested": "not_interested",
@@ -1243,6 +1248,17 @@ def bulk_import():
     for i, row in enumerate(rows):
         attributes = {k: v for k, v in row.items()
                       if k in ("contact_method", "contact_status", "content")}
+
+        # Re-normalize method/status in case the user edited the preview table
+        for field, aliases, valid_list in [
+            ("contact_method", _METHOD_ALIASES, CONTACT_METHODS),
+            ("contact_status", _STATUS_ALIASES, CONTACT_STATUSES),
+        ]:
+            val = attributes.get(field, "")
+            if val:
+                key = val.lower().replace("-", "_").replace(" ", "_")
+                resolved = aliases.get(val.lower(), aliases.get(key, val))
+                attributes[field] = resolved if resolved in valid_list else "other"
 
         # Build content: date contacted (if present) → user notes → import stamp
         parts = []

@@ -524,8 +524,9 @@
         : `<div class="alert-warn"><strong>AI notes:</strong> ${notes}</div>`;
 
       const nbFields = ['signup_id', 'contact_method', 'contact_status', 'contact_date', 'content'];
+      const nbLabels = { signup_id: 'Signup ID', contact_method: 'Contact Method', contact_status: 'Contact Status', contact_date: 'Date Contacted', content: 'Notes' };
       document.getElementById('preview-head').innerHTML =
-        nbFields.map(f => `<th>${f}</th>`).join('') + '<th style="width:32px;"></th>';
+        nbFields.map(f => `<th>${nbLabels[f] || f}</th>`).join('') + '<th style="width:32px;"></th>';
 
       const body = document.getElementById('preview-body');
       body.innerHTML = '';
@@ -533,6 +534,7 @@
 
       updatePreviewCount();
       showStep('step-preview');
+      window.scrollTo(0, 0);
     }
 
     function renderPreviewRow(body, rowData, nbFields) {
@@ -592,8 +594,15 @@
     }
 
     function updatePreviewCount() {
-      document.getElementById('preview-count').textContent = `(${allRows.length} row${allRows.length !== 1 ? 's' : ''})`;
-      document.getElementById('import-count').textContent = allRows.length;
+      const pc = document.getElementById('preview-count');
+      const ic = document.getElementById('import-count');
+      if (pc) pc.textContent = `(${allRows.length} row${allRows.length !== 1 ? 's' : ''})`;
+      // import-btn innerHTML is replaced during import; restore the span if missing
+      const btn = document.getElementById('import-btn');
+      if (btn && !ic) btn.innerHTML = `Import <span id="import-count"></span> Contacts`;
+      const ic2 = document.getElementById('import-count');
+      if (ic2) ic2.textContent = allRows.length;
+      if (btn) btn.disabled = false;
     }
 
     document.addEventListener('click', () => closeActiveLookup());
@@ -738,17 +747,22 @@
     }
 
     function fixFailedRows() {
+      try {
       const nbFields = ['signup_id', 'contact_method', 'contact_status', 'contact_date', 'content'];
+      const nbLabels = { signup_id: 'Signup ID', contact_method: 'Contact Method', contact_status: 'Contact Status', contact_date: 'Date Contacted', content: 'Notes' };
+      const snapshot = allRows.slice(); // capture before mutation
       const failed = _lastErrors.map(e => ({
-        rowData: allRows[e.row - 1],
+        rowData: snapshot[e.row - 1],
         msg: friendlyError(e),
       })).filter(f => f.rowData);
+
+      if (!failed.length) { alert('No failed rows found — try re-importing.'); return; }
 
       // Replace allRows with only the failed ones
       allRows = failed.map(f => f.rowData);
 
       document.getElementById('preview-head').innerHTML =
-        nbFields.map(f => `<th>${f}</th>`).join('') + '<th style="width:32px;"></th>';
+        nbFields.map(f => `<th>${nbLabels[f] || f}</th>`).join('') + '<th style="width:32px;"></th>';
 
       const body = document.getElementById('preview-body');
       body.innerHTML = '';
@@ -769,6 +783,8 @@
       document.getElementById('ai-notes').innerHTML =
         `<div class="alert-warn"><strong>Fix mode:</strong> Only the ${failed.length} failed row${failed.length !== 1 ? 's' : ''} are shown. Correct the issues above each row, then click Import.</div>`;
       showStep('step-preview');
+      window.scrollTo(0, 0);
+      } catch(err) { alert('Fix mode error: ' + err.message); }
     }
 
     function showStep(id) {
