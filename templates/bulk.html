@@ -705,11 +705,12 @@
       }
       // Fallback: strip URL from the HTTP error message
       const msg = e.error || '';
-      if (msg.includes('400')) return `Bad request — check that the person ID exists in NationBuilder and all required fields are filled in.`;
+      const sent = e.sent ? ` (sent: ${Object.entries(e.sent).map(([k,v])=>`${k}="${v}"`).join(', ')})` : '';
+      if (msg.includes('400')) return `Bad request — check that the person ID exists in NationBuilder and all required fields are valid.${sent}`;
       if (msg.includes('401') || msg.includes('403')) return `Authentication error — the nation token may have expired.`;
-      if (msg.includes('404')) return `Person not found — the NationBuilder ID may be wrong or not in this nation.`;
-      if (msg.includes('422')) return `Invalid data — one or more fields have an unrecognized value.`;
-      return msg || 'Unknown error';
+      if (msg.includes('404')) return `Person not found — the NationBuilder ID may be wrong or not in this nation.${sent}`;
+      if (msg.includes('422')) return `Invalid data — one or more fields have an unrecognized value.${sent}`;
+      return (msg || 'Unknown error') + sent;
     }
 
     function showResults(results) {

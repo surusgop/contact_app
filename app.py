@@ -1049,10 +1049,54 @@ def parse_upload(file) -> pd.DataFrame:
             return pd.DataFrame({"text": text.splitlines()})
 
 
+_STATUS_ALIASES = {
+    "no_response": "no_answer", "no response": "no_answer",
+    "did not answer": "no_answer", "unanswered": "no_answer",
+    "no_answer": "no_answer", "no answer": "no_answer",
+    "left_message": "left_message", "left message": "left_message",
+    "voicemail": "left_message", "vm": "left_message",
+    "meaningful_interaction": "meaningful_interaction",
+    "meaningful interaction": "meaningful_interaction",
+    "meaningful": "meaningful_interaction",
+    "bad_info": "bad_info", "bad info": "bad_info",
+    "wrong number": "bad_info", "bad number": "bad_info",
+    "send_information": "send_information", "send information": "send_information",
+    "info requested": "send_information",
+    "not_interested": "not_interested", "not interested": "not_interested",
+    "refused": "refused", "hung up": "refused",
+    "inaccessible": "inaccessible", "no access": "inaccessible",
+    "answered": "answered",
+    "other": "other",
+}
+_METHOD_ALIASES = {
+    "phone": "phone_call", "phone call": "phone_call", "call": "phone_call",
+    "phone_call": "phone_call",
+    "door knock": "door_knock", "door_knock": "door_knock",
+    "canvass": "door_knock", "knock": "door_knock",
+    "email_blast": "email_blast", "email blast": "email_blast",
+    "email": "email", "e-mail": "email",
+    "face_to_face": "face_to_face", "face to face": "face_to_face",
+    "in person": "face_to_face", "in-person": "face_to_face",
+    "meeting": "meeting",
+    "text": "text", "sms": "text", "text message": "text",
+    "text_1to1": "text_1to1", "text 1to1": "text_1to1", "1on1 text": "text_1to1",
+    "text_blast": "text_blast", "text blast": "text_blast",
+    "robocall": "robocall", "robo call": "robocall",
+    "snail_mail": "snail_mail", "snail mail": "snail_mail", "mail": "snail_mail",
+    "tweet": "tweet", "twitter": "tweet",
+    "video_call": "video_call", "video call": "video_call",
+    "zoom": "video_call", "video": "video_call",
+    "webinar": "webinar",
+    "linkedin": "linkedin",
+    "facebook": "facebook",
+    "delivery": "delivery",
+    "other": "other",
+}
+
 def _apply_mapping_locally(column_mapping: dict, all_rows: list) -> list:
-    methods_map = {m.replace("_", " "): m for m in CONTACT_METHODS}
+    methods_map = dict(_METHOD_ALIASES)
     methods_map.update({m: m for m in CONTACT_METHODS})
-    statuses_map = {s.replace("_", " "): s for s in CONTACT_STATUSES}
+    statuses_map = dict(_STATUS_ALIASES)
     statuses_map.update({s: s for s in CONTACT_STATUSES})
     date_fmts = ("%Y-%m-%d", "%m/%d/%Y", "%m/%d/%y", "%d/%m/%Y",
                  "%B %d, %Y", "%b %d, %Y", "%Y/%m/%d")
@@ -1071,10 +1115,12 @@ def _apply_mapping_locally(column_mapping: dict, all_rows: list) -> list:
                     row[nb] = digits
             elif nb == "contact_method":
                 key = val.lower().replace("-", "_").replace(" ", "_")
-                row[nb] = methods_map.get(val.lower(), methods_map.get(key, key))
+                resolved = methods_map.get(val.lower(), methods_map.get(key))
+                row[nb] = resolved if resolved in CONTACT_METHODS else "other"
             elif nb == "contact_status":
                 key = val.lower().replace("-", "_").replace(" ", "_")
-                row[nb] = statuses_map.get(val.lower(), statuses_map.get(key, key))
+                resolved = statuses_map.get(val.lower(), statuses_map.get(key))
+                row[nb] = resolved if resolved in CONTACT_STATUSES else "other"
             elif nb == "contact_date":
                 parsed = None
                 for fmt in date_fmts:
@@ -1225,8 +1271,16 @@ def bulk_import():
             results["success"] += 1
         except requests.HTTPError as e:
             results["failed"] += 1
-            detail = e.response.json() if e.response else str(e)
-            results["errors"].append({"row": i + 1, "error": str(e), "detail": detail})
+            try:
+                detail = e.response.json()
+            except Exception:
+                detail = e.response.text if e.response else str(e)
+            results["errors"].append({
+                "row": i + 1,
+                "error": str(e),
+                "detail": detail,
+                "sent": {k: v for k, v in attributes.items() if k != "content"},
+            })
         except Exception as e:
             results["failed"] += 1
             results["errors"].append({"row": i + 1, "error": str(e)})
