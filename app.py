@@ -70,8 +70,9 @@ CONTACT_METHODS = [
     "webinar", "linkedin", "other",
 ]
 CONTACT_STATUSES = [
-    "answered", "no_answer", "voicemail", "meaningful_interaction",
-    "not_interested", "wrong_number", "other",
+    "answered", "bad_info", "left_message", "meaningful_interaction",
+    "send_information", "not_interested", "no_answer", "refused",
+    "inaccessible", "other",
 ]
 
 _NICKNAME_GROUPS = [
@@ -1053,23 +1054,22 @@ _STATUS_ALIASES = {
     "no_response": "no_answer", "no response": "no_answer",
     "did not answer": "no_answer", "unanswered": "no_answer",
     "no_answer": "no_answer", "no answer": "no_answer",
-    # voicemail / left message variants
-    "left_message": "voicemail", "left message": "voicemail",
-    "voicemail": "voicemail", "vm": "voicemail",
+    # left_message / voicemail variants (NB calls it left_message)
+    "left_message": "left_message", "left message": "left_message",
+    "voicemail": "left_message", "vm": "left_message",
     # meaningful_interaction
     "meaningful_interaction": "meaningful_interaction",
     "meaningful interaction": "meaningful_interaction",
     "meaningful": "meaningful_interaction",
-    # wrong_number (was bad_info)
-    "bad_info": "wrong_number", "bad info": "wrong_number",
-    "wrong number": "wrong_number", "bad number": "wrong_number",
-    "wrong_number": "wrong_number",
-    # not_interested (refused → not_interested; inaccessible → other)
-    "send_information": "other", "send information": "other",
-    "info requested": "other",
+    # bad_info (wrong number, bad contact info)
+    "bad_info": "bad_info", "bad info": "bad_info",
+    "wrong number": "bad_info", "bad number": "bad_info", "wrong_number": "bad_info",
+    # other catch-alls
+    "send_information": "send_information", "send information": "send_information",
+    "info requested": "send_information",
     "not_interested": "not_interested", "not interested": "not_interested",
-    "refused": "not_interested", "hung up": "not_interested",
-    "inaccessible": "other", "no access": "other",
+    "refused": "refused", "hung up": "refused",
+    "inaccessible": "inaccessible", "no access": "inaccessible",
     "answered": "answered",
     "other": "other",
 }

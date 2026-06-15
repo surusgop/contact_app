@@ -594,8 +594,15 @@
     }
 
     function updatePreviewCount() {
-      document.getElementById('preview-count').textContent = `(${allRows.length} row${allRows.length !== 1 ? 's' : ''})`;
-      document.getElementById('import-count').textContent = allRows.length;
+      const pc = document.getElementById('preview-count');
+      const ic = document.getElementById('import-count');
+      if (pc) pc.textContent = `(${allRows.length} row${allRows.length !== 1 ? 's' : ''})`;
+      // import-btn innerHTML is replaced during import; restore the span if missing
+      const btn = document.getElementById('import-btn');
+      if (btn && !ic) btn.innerHTML = `Import <span id="import-count"></span> Contacts`;
+      const ic2 = document.getElementById('import-count');
+      if (ic2) ic2.textContent = allRows.length;
+      if (btn) btn.disabled = false;
     }
 
     document.addEventListener('click', () => closeActiveLookup());
