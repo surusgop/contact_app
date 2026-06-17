@@ -732,7 +732,7 @@
       return dateStr;
     }
 
-    async function autoLookup(rowData, inputEl, statusEl, firstName, lastName) {
+    async function autoLookup(rowData, inputEl, statusEl, firstName, lastName, findBtn) {
       if (!firstName && !lastName) return;
       if (rowData.signup_id) return;
       statusEl.innerHTML = '<span style="color:var(--muted);font-size:.72rem;">Looking up…</span>';
@@ -749,6 +749,7 @@
           rowData.signup_id = String(rec.nb_id);
           inputEl.value = String(rec.nb_id);
           statusEl.innerHTML = `<span style="color:#16a34a;font-size:.72rem;">&#x2713; ${rec.first_name||''} ${rec.last_name||''}</span>`;
+          if (findBtn) findBtn.style.display = 'none';
         } else {
           showDisambiguator(rowData, inputEl, statusEl, json.records);
         }
@@ -838,7 +839,7 @@
           const statusEl = document.createElement('div');
           statusEl.style.cssText = 'position:relative;margin-top:.25rem;min-height:.9rem;';
           if ((firstName || lastName) && !rowData.signup_id) {
-            setTimeout(() => autoLookup(rowData, input, statusEl, firstName, lastName), 0);
+            setTimeout(() => autoLookup(rowData, input, statusEl, firstName, lastName, btn), 0);
           }
           if (nameInputRef) {
             let lookupTimer;
