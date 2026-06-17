@@ -1453,6 +1453,70 @@ def bulk_upload():
         return jsonify({"success": False, "error": str(e)}), 500
 
 
+@app.route("/bulk/paste", methods=["POST"])
+@login_required
+def bulk_paste():
+    data = request.get_json()
+    text = (data.get("text") or "").strip()
+    if not text:
+        return jsonify({"success": False, "error": "No text provided"}), 400
+
+    prompt = f"""Extract NationBuilder contact records from this text. Each distinct person/interaction is a separate row.
+
+Valid contact_method values: {json.dumps(CONTACT_METHODS)}
+Valid contact_status values: {json.dumps(CONTACT_STATUSES)}
+
+Return ONLY a JSON object (no markdown):
+{{
+  "rows": [
+    {{
+      "_full_name": "Full name or empty string",
+      "contact_method": "one of the valid values or empty string",
+      "contact_status": "one of the valid values or empty string",
+      "contact_date": "YYYY-MM-DD or empty string",
+      "content": "notes about this contact"
+    }}
+  ]
+}}
+
+Text:
+{text}"""
+
+    try:
+        resp = requests.post(
+            "https://openrouter.ai/api/v1/chat/completions",
+            headers={"Authorization": f"Bearer {OPENROUTER_API_KEY}", "Content-Type": "application/json"},
+            json={
+                "model": "openai/gpt-4o-mini",
+                "messages": [{"role": "user", "content": prompt}],
+                "temperature": 0.1,
+            },
+            timeout=30,
+        )
+        resp.raise_for_status()
+        raw = resp.json()["choices"][0]["message"]["content"].strip()
+        if raw.startswith("```"):
+            raw = raw.split("\n", 1)[1].rsplit("```", 1)[0].strip()
+        result = json.loads(raw)
+        rows = result.get("rows", [])
+        for row in rows:
+            full = (row.pop("_full_name", "") or "").strip()
+            if full:
+                parts = full.split(None, 1)
+                row["_first_name"] = parts[0]
+                row["_last_name"] = parts[1] if len(parts) > 1 else ""
+                row["_full_name"] = full
+            row.setdefault("signup_id", "")
+            row.setdefault("author_id", "")
+            row.setdefault("contact_method", "")
+            row.setdefault("contact_status", "")
+            row.setdefault("contact_date", "")
+            row.setdefault("content", "")
+        return jsonify({"success": True, "all_rows": rows})
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
 @app.route("/bulk/import", methods=["POST"])
 @login_required
 def bulk_import():
