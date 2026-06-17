@@ -754,6 +754,68 @@
       return dateStr;
     }
 
+    async function autoLookup(rowData, inputEl, statusEl, firstName, lastName) {
+      if (!firstName && !lastName) return;
+      if (rowData.signup_id) return;
+      statusEl.innerHTML = '<span style="color:var(--muted);font-size:.72rem;">Looking up…</span>';
+      try {
+        const url = `/search-by-name?first=${encodeURIComponent(firstName)}&last=${encodeURIComponent(lastName)}&nation_slug=${encodeURIComponent(NATION_SLUG)}`;
+        const resp = await fetch(url);
+        const json = await resp.json();
+        if (!json.success || !json.records || !json.records.length) {
+          statusEl.innerHTML = '';
+          return;
+        }
+        if (json.records.length === 1) {
+          const rec = json.records[0];
+          rowData.signup_id = String(rec.nb_id);
+          inputEl.value = String(rec.nb_id);
+          statusEl.innerHTML = `<span style="color:#16a34a;font-size:.72rem;">&#x2713; ${rec.first_name||''} ${rec.last_name||''}</span>`;
+        } else {
+          showDisambiguator(rowData, inputEl, statusEl, json.records);
+        }
+      } catch (e) {
+        statusEl.innerHTML = '';
+      }
+    }
+
+    function showDisambiguator(rowData, inputEl, statusEl, records) {
+      statusEl.innerHTML = '';
+      const triggerBtn = document.createElement('button');
+      triggerBtn.type = 'button';
+      triggerBtn.style.cssText = 'font-size:.72rem;background:none;border:none;color:var(--primary);cursor:pointer;padding:0;text-decoration:underline dotted;white-space:nowrap;';
+      triggerBtn.textContent = `${records.length} matches found — pick one`;
+      const panel = document.createElement('div');
+      panel.style.cssText = 'display:none;position:absolute;z-index:300;left:0;top:100%;background:white;border:1.5px solid #e5e7eb;border-radius:8px;box-shadow:0 4px 16px rgba(0,0,0,.12);min-width:290px;max-height:240px;overflow-y:auto;';
+      records.forEach(r => {
+        const item = document.createElement('div');
+        item.style.cssText = 'padding:.55rem .85rem;cursor:pointer;font-size:.8rem;border-bottom:1px solid #f3f4f6;line-height:1.5;';
+        const addrParts = [r.address1, r.city, r.state ? (r.state + (r.zip ? ' ' + r.zip : '')) : r.zip].filter(Boolean);
+        item.innerHTML = `<strong>${r.first_name||''} ${r.last_name||''}${r.suffix ? ', ' + r.suffix : ''}</strong>${addrParts.length ? '<br><span style="color:#6b7280;font-size:.75rem;">' + addrParts.join(', ') + '</span>' : ''}`;
+        item.addEventListener('mouseover', () => { item.style.background = '#fef2f2'; });
+        item.addEventListener('mouseout', () => { item.style.background = ''; });
+        item.addEventListener('click', () => {
+          rowData.signup_id = String(r.nb_id);
+          inputEl.value = String(r.nb_id);
+          statusEl.innerHTML = `<span style="color:#16a34a;font-size:.72rem;">&#x2713; ${r.first_name||''} ${r.last_name||''}</span>`;
+        });
+        panel.appendChild(item);
+      });
+      triggerBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        panel.style.display = panel.style.display === 'none' ? 'block' : 'none';
+      });
+      document.addEventListener('click', function closeHandler(e) {
+        if (!statusEl.contains(e.target)) {
+          panel.style.display = 'none';
+          document.removeEventListener('click', closeHandler);
+        }
+      });
+      statusEl.style.position = 'relative';
+      statusEl.appendChild(triggerBtn);
+      statusEl.appendChild(panel);
+    }
+
     function renderPreviewRow(body, rowData, fields) {
       const tr = document.createElement('tr');
       fields.forEach(field => {
@@ -773,6 +835,7 @@
           input.type = 'text'; input.placeholder = 'ID'; input.value = rowData[field] || '';
           input.addEventListener('change', () => { rowData.signup_id = input.value.trim(); });
           let dynFirst = firstName, dynLast = lastName;
+          let nameInputRef = null;
           if (!dynFirst && !dynLast) {
             const nameInput = document.createElement('input');
             nameInput.type = 'text'; nameInput.placeholder = 'Type name…';
@@ -783,6 +846,7 @@
               rowData._first_name = dynFirst; rowData._last_name = dynLast;
               rowData._full_name = nameInput.value.trim();
             });
+            nameInputRef = nameInput;
             wrapper.appendChild(nameInput);
           }
           const btn = document.createElement('button');
@@ -793,7 +857,24 @@
             openLookup(btn, input, rowData, dynFirst, dynLast);
           });
           wrapper.appendChild(input); wrapper.appendChild(btn);
+          const statusEl = document.createElement('div');
+          statusEl.style.cssText = 'position:relative;margin-top:.25rem;min-height:.9rem;';
+          if ((firstName || lastName) && !rowData.signup_id) {
+            setTimeout(() => autoLookup(rowData, input, statusEl, firstName, lastName), 0);
+          }
+          if (nameInputRef) {
+            let lookupTimer;
+            nameInputRef.addEventListener('input', () => {
+              clearTimeout(lookupTimer);
+              lookupTimer = setTimeout(() => {
+                if (rowData._first_name || rowData._last_name) {
+                  autoLookup(rowData, input, statusEl, rowData._first_name || '', rowData._last_name || '');
+                }
+              }, 800);
+            });
+          }
           td.appendChild(wrapper);
+          td.appendChild(statusEl);
         } else if (field === 'content') {
           const ta = document.createElement('textarea');
           ta.value = rowData[field] || '';
