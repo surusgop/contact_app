@@ -261,7 +261,10 @@
 
         <div class="row" style="margin-bottom:.85rem;">
           <div class="col-6">
-            <label class="form-label">Contact Method</label>
+            <label class="form-label" style="display:flex;align-items:center;gap:.5rem;">
+              Contact Method
+              <span id="method-ai-badge" style="display:none;font-size:.65rem;background:rgba(212,168,75,.15);border:1px solid rgba(212,168,75,.35);color:var(--gold);border-radius:4px;padding:.1rem .4rem;font-family:'Oswald',sans-serif;letter-spacing:.05em;">AI</span>
+            </label>
             <select class="form-select" id="contact_method" name="contact_method">
               <option value="">— select —</option>
               {% for m in contact_methods %}
@@ -270,7 +273,10 @@
             </select>
           </div>
           <div class="col-6">
-            <label class="form-label">Contact Status</label>
+            <label class="form-label" style="display:flex;align-items:center;gap:.5rem;">
+              Contact Status
+              <span id="status-ai-badge" style="display:none;font-size:.65rem;background:rgba(212,168,75,.15);border:1px solid rgba(212,168,75,.35);color:var(--gold);border-radius:4px;padding:.1rem .4rem;font-family:'Oswald',sans-serif;letter-spacing:.05em;">AI</span>
+            </label>
             <select class="form-select" id="contact_status" name="contact_status">
               <option value="">— select —</option>
               {% for s in contact_statuses %}
@@ -471,6 +477,45 @@
       resultContent.className = success ? 'result-ok' : 'result-err';
       resultContent.innerHTML = html;
       result.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
+
+    // ── AI note inference ──────────────────────────────────────────────
+    let inferTimer = null;
+    const notesField = document.getElementById('content');
+    const methodSel  = document.getElementById('contact_method');
+    const statusSel  = document.getElementById('contact_status');
+    const methodBadge = document.getElementById('method-ai-badge');
+    const statusBadge = document.getElementById('status-ai-badge');
+
+    notesField.addEventListener('input', () => {
+      clearTimeout(inferTimer);
+      const text = notesField.value.trim();
+      if (text.length < 8) return; // wait for at least a few words
+      inferTimer = setTimeout(() => inferFromNote(text), 900);
+    });
+
+    // Hide AI badges when user manually changes a dropdown
+    methodSel.addEventListener('change', () => { methodBadge.style.display = 'none'; });
+    statusSel.addEventListener('change',  () => { statusBadge.style.display = 'none'; });
+
+    async function inferFromNote(text) {
+      try {
+        const resp = await fetch('/infer-contact-type', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ text }),
+        });
+        const json = await resp.json();
+        if (!json.success) return;
+        if (json.contact_method && !methodSel.value) {
+          methodSel.value = json.contact_method;
+          methodBadge.style.display = 'inline';
+        }
+        if (json.contact_status && !statusSel.value) {
+          statusSel.value = json.contact_status;
+          statusBadge.style.display = 'inline';
+        }
+      } catch (_) {}
     }
   </script>
 </body>

@@ -1195,6 +1195,48 @@ Return ONLY JSON (no markdown):
     return mapping
 
 
+@app.route("/infer-contact-type", methods=["POST"])
+@login_required
+def infer_contact_type():
+    text = (request.get_json() or {}).get("text", "").strip()
+    if not text:
+        return jsonify({"success": False, "error": "No text provided"}), 400
+    prompt = f"""You are helping categorize a contact log note for a political campaign.
+
+Given this note: "{text}"
+
+Choose the BEST match from each list:
+
+contact_method (how they were reached): {json.dumps(CONTACT_METHODS)}
+contact_status (outcome of the contact): {json.dumps(CONTACT_STATUSES)}
+
+Return ONLY valid JSON with no markdown:
+{{"contact_method": "...", "contact_status": "..."}}"""
+    try:
+        resp = requests.post(
+            "https://openrouter.ai/api/v1/chat/completions",
+            headers={"Authorization": f"Bearer {OPENROUTER_API_KEY}", "Content-Type": "application/json"},
+            json={"model": "openai/gpt-4o-mini", "messages": [{"role": "user", "content": prompt}]},
+            timeout=15,
+        )
+        resp.raise_for_status()
+        content = resp.json()["choices"][0]["message"]["content"].strip()
+        if content.startswith("```"):
+            content = content.split("```")[1]
+            if content.startswith("json"):
+                content = content[4:]
+        result = json.loads(content.strip())
+        method = result.get("contact_method", "")
+        status = result.get("contact_status", "")
+        if method not in CONTACT_METHODS:
+            method = ""
+        if status not in CONTACT_STATUSES:
+            status = ""
+        return jsonify({"success": True, "contact_method": method, "contact_status": status})
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
 @app.route("/bulk")
 @login_required
 def bulk():
