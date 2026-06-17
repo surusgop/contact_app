@@ -963,16 +963,20 @@ def parse_image_with_ai(raw: bytes, _filename: str = "") -> pd.DataFrame:
         "https://openrouter.ai/api/v1/chat/completions",
         headers={"Authorization": f"Bearer {OPENROUTER_API_KEY}", "Content-Type": "application/json"},
         json={
-            "model": "openai/gpt-4o-mini",
+            "model": "openai/gpt-4o",
             "messages": [{
                 "role": "user",
                 "content": [
                     {"type": "image_url", "image_url": {"url": f"data:{mime};base64,{b64}"}},
                     {"type": "text", "text": (
-                        "Extract all contact or person data visible in this image into a JSON array of objects. "
-                        "Each person/row should be one object with column headers as keys. "
-                        "Include every column you can see: name, phone, email, address, date contacted, notes, IDs, etc. "
-                        "Return ONLY a valid JSON array — no markdown, no code fences, no explanation."
+                        "This may be a handwritten note, a printed list, a spreadsheet screenshot, or a photo of contact records. "
+                        "Carefully read ALL text in the image, including handwriting. "
+                        "Extract each distinct person or contact entry as one JSON object in an array. "
+                        "Fields to extract (use these exact keys when present): "
+                        "name, first_name, last_name, date, phone, email, address, notes, id. "
+                        "If only one person is mentioned, return an array with one object. "
+                        "Do NOT invent or duplicate rows — only extract what is actually written. "
+                        "Return ONLY a valid JSON array, no markdown, no code fences, no explanation."
                     )},
                 ],
             }],
