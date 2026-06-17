@@ -15,8 +15,8 @@
       --surface-2: #f1f5f9;
       --primary: #dc2626;
       --primary-dark: #b91c1c;
-      --blue: #2563eb;
-      --blue-dark: #1d4ed8;
+      --charcoal: #374151;
+      --charcoal-dark: #1f2937;
       --text: #111827;
       --muted: #6b7280;
       --border: #e5e7eb;
@@ -36,14 +36,14 @@
     .nav-right { display: flex; align-items: center; gap: .6rem; }
     .user-avatar { width: 30px; height: 30px; border-radius: 50%; border: 2px solid var(--border); }
     .user-name { font-size: .82rem; color: var(--muted); }
-    .nation-badge { font-size: .82rem; color: var(--blue); font-weight: 600; }
+    .nation-badge { font-size: .82rem; color: var(--charcoal); font-weight: 600; }
     .btn-ghost { background: transparent; border: 1px solid var(--border); border-radius: 6px; color: var(--muted); font-size: .78rem; font-family: 'Inter', sans-serif; padding: .35rem .8rem; cursor: pointer; text-decoration: none; transition: border-color .15s, color .15s; }
     .btn-ghost:hover { border-color: var(--primary); color: var(--primary); }
     .page { max-width: 960px; margin: 0 auto; padding: 2rem 1rem 5rem; }
     .page-title { font-family: 'Oswald', sans-serif; font-size: 1.7rem; font-weight: 700; color: var(--primary); letter-spacing: .06em; text-transform: uppercase; }
     .page-sub { font-size: .84rem; color: var(--muted); margin-top: .3rem; }
     .s-card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 1.5rem; margin-top: 1.25rem; box-shadow: 0 1px 3px rgba(0,0,0,.06); }
-    .s-card-gold { background: var(--surface); border: 2px solid var(--blue); border-radius: 12px; padding: 1.5rem; margin-top: 1.25rem; box-shadow: 0 1px 6px rgba(37,99,235,.08); }
+    .s-card-gold { background: var(--surface); border: 2px solid var(--charcoal); border-radius: 12px; padding: 1.5rem; margin-top: 1.25rem; box-shadow: 0 1px 6px rgba(220,38,38,.06); }
     .s-label { font-family: 'Oswald', sans-serif; font-size: .7rem; letter-spacing: .16em; text-transform: uppercase; color: var(--primary); margin-bottom: .9rem; }
     .form-label { font-size: .78rem; font-weight: 500; color: var(--muted); margin-bottom: .35rem; display: block; }
     .form-text { font-size: .73rem; color: var(--muted); margin-top: .3rem; }
@@ -53,7 +53,7 @@
       font-family: 'Inter', sans-serif; padding: .6rem .9rem;
       transition: border-color .15s, box-shadow .15s; outline: none;
     }
-    .form-control:focus { border-color: var(--blue); box-shadow: 0 0 0 3px rgba(37,99,235,.12); }
+    .form-control:focus { border-color: var(--charcoal); box-shadow: 0 0 0 3px rgba(220,38,38,.12); }
     .form-control::placeholder { color: #c4cdd8; }
     .row-2 { display: flex; gap: .85rem; }
     .col-half { flex: 1; }
@@ -62,7 +62,7 @@
       padding: 2rem; text-align: center; cursor: pointer;
       transition: border-color .2s, background .2s;
     }
-    .drop-zone:hover, .drop-zone.dragover { border-color: var(--blue); background: rgba(37,99,235,.04); }
+    .drop-zone:hover, .drop-zone.dragover { border-color: var(--charcoal); background: rgba(220,38,38,.04); }
     .drop-icon { font-size: 2rem; margin-bottom: .5rem; }
     .drop-title { font-family: 'Oswald', sans-serif; font-size: .95rem; letter-spacing: .06em; text-transform: uppercase; color: var(--text); }
     .drop-sub { font-size: .78rem; color: var(--muted); margin-top: .3rem; }
@@ -78,13 +78,13 @@
     .btn-red:active, .btn-red-lg:active { transform: translateY(1px); }
     .btn-red:disabled, .btn-red-lg:disabled { opacity: .45; cursor: not-allowed; transform: none; }
     .btn-gold {
-      background: transparent; border: 1px solid var(--blue); color: var(--blue);
+      background: transparent; border: 1px solid var(--charcoal); color: var(--charcoal);
       font-family: 'Oswald', sans-serif; font-size: .78rem; font-weight: 600;
       letter-spacing: .08em; text-transform: uppercase;
       padding: .4rem 1rem; border-radius: 6px; cursor: pointer;
       transition: background .15s;
     }
-    .btn-gold:hover { background: rgba(37,99,235,.08); }
+    .btn-gold:hover { background: rgba(220,38,38,.1); }
     .btn-outline {
       background: transparent; border: 1px solid var(--border); color: var(--muted);
       font-family: 'Oswald', sans-serif; font-size: .82rem; font-weight: 600;
@@ -111,7 +111,7 @@
       text-transform: none;
       letter-spacing: 0;
     }
-    .nb-select:focus { border-color: var(--blue); box-shadow: 0 0 0 3px rgba(37,99,235,.12); }
+    .nb-select:focus { border-color: var(--charcoal); box-shadow: 0 0 0 3px rgba(220,38,38,.12); }
     .nb-select option { color: var(--text); background: #fff; }
     .file-row { display: flex; align-items: center; gap: .6rem; padding: .4rem 0; border-bottom: 1px solid var(--border); font-size: .82rem; }
     .file-row:last-child { border-bottom: none; }
@@ -119,13 +119,13 @@
     .file-name { flex: 1; color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     .file-status { font-size: .75rem; font-weight: 500; }
     .status-waiting { color: var(--muted); }
-    .status-processing { color: var(--blue); }
+    .status-processing { color: var(--charcoal); }
     .status-done { color: #16a34a; }
     .status-error { color: var(--primary); }
     .alert-ok { background: #f0fdf4; border: 1px solid #86efac; border-radius: 8px; padding: .6rem 1rem; font-size: .82rem; color: #166534; }
     .alert-warn { background: #fffbeb; border: 1px solid #fcd34d; border-radius: 8px; padding: .6rem 1rem; font-size: .82rem; color: #92400e; }
     .alert-err { background: #fef2f2; border: 1px solid #fca5a5; border-radius: 8px; padding: .6rem 1rem; font-size: .82rem; color: #991b1b; }
-    .alert-info { background: #eff6ff; border: 1px solid #93c5fd; border-radius: 8px; padding: .6rem 1rem; font-size: .82rem; color: #1e40af; }
+    .alert-info { background: #f9fafb; border: 1px solid #d1d5db; border-radius: 8px; padding: .6rem 1rem; font-size: .82rem; color: #374151; }
     .spinner { display: inline-block; width: 14px; height: 14px; border: 2px solid rgba(0,0,0,.1); border-top-color: currentColor; border-radius: 50%; animation: spin 0.7s linear infinite; margin-right: 6px; vertical-align: middle; }
     @keyframes spin { to { transform: rotate(360deg); } }
     .table-wrap { overflow-x: auto; }
@@ -144,22 +144,22 @@
       font-size: .82rem; font-family: 'Inter', sans-serif;
       padding: .2rem .3rem; width: 100%; outline: none; border-radius: 4px;
     }
-    tbody td input:focus { background: #eff6ff; outline: 1px solid var(--blue); }
+    tbody td input:focus { background: #fff7f7; outline: 1px solid var(--charcoal); }
     tbody td textarea {
       background: transparent; border: none; color: var(--text);
       font-size: .8rem; font-family: 'Inter', sans-serif;
       padding: .2rem .3rem; width: 100%; outline: none;
       resize: vertical; min-height: 2.5rem;
     }
-    tbody td textarea:focus { background: #eff6ff; outline: 1px solid var(--blue); border-radius: 4px; }
+    tbody td textarea:focus { background: #fff7f7; outline: 1px solid var(--charcoal); border-radius: 4px; }
     .find-btn {
-      background: var(--blue); border: none; color: #fff;
+      background: var(--charcoal); border: none; color: #fff;
       border-radius: 5px; padding: .2rem .6rem; font-size: .73rem;
       font-family: 'Oswald', sans-serif; letter-spacing: .06em;
       text-transform: uppercase; cursor: pointer; white-space: nowrap;
       transition: background .15s;
     }
-    .find-btn:hover { background: var(--blue-dark); }
+    .find-btn:hover { background: var(--charcoal-dark); }
     .find-btn-ok {
       background: #16a34a; border: none; color: #fff;
       border-radius: 5px; padding: .2rem .5rem; font-size: .73rem;
@@ -174,11 +174,11 @@
       z-index: 200; max-height: 220px; overflow-y: auto;
     }
     .lookup-item { padding: .6rem .85rem; cursor: pointer; font-size: .82rem; border-bottom: 1px solid var(--border); transition: background .1s; }
-    .lookup-item:hover { background: #eff6ff; }
+    .lookup-item:hover { background: #fff7f7; }
     .lookup-item:last-child { border-bottom: none; }
     .li-name { font-weight: 600; color: var(--text); }
     .li-addr { font-size: .74rem; color: var(--muted); margin-top: .1rem; }
-    .li-id { font-size: .72rem; color: var(--blue); margin-top: .1rem; }
+    .li-id { font-size: .72rem; color: var(--charcoal); margin-top: .1rem; }
     .lookup-overlay {
       position: fixed; inset: 0; background: rgba(0,0,0,.35);
       display: flex; align-items: center; justify-content: center;
@@ -194,9 +194,9 @@
     .lookup-modal-title { font-family: 'Oswald', sans-serif; font-size: 1.1rem; font-weight: 700; color: var(--text); letter-spacing: .05em; text-transform: uppercase; }
     .lookup-modal-results { max-height: 260px; overflow-y: auto; border: 1px solid var(--border); border-radius: 8px; }
     .manual-form-card {
-      background: var(--surface); border: 1px solid #bfdbfe;
+      background: var(--surface); border: 1px solid #fecaca;
       border-radius: 10px; padding: 1.1rem 1.25rem; margin-bottom: .85rem;
-      box-shadow: 0 1px 4px rgba(37,99,235,.06);
+      box-shadow: 0 1px 4px rgba(220,38,38,.06);
     }
     .queue-badge {
       display: inline-flex; align-items: center; justify-content: center;
@@ -205,15 +205,6 @@
       min-width: 22px; padding: .1rem .45rem; margin-left: .45rem;
       vertical-align: middle; line-height: 1.4;
     }
-    .import-footer {
-      position: sticky; bottom: 0;
-      background: #fff; border-top: 2px solid var(--border);
-      padding: 1rem 2rem; display: flex; align-items: center;
-      justify-content: space-between; gap: 1rem;
-      z-index: 90; box-shadow: 0 -2px 8px rgba(0,0,0,.06);
-    }
-    .import-footer-info { font-size: .84rem; color: var(--muted); }
-    .import-footer-info strong { color: var(--text); font-size: 1.1rem; }
     .result-stat { display: flex; gap: 2rem; margin-bottom: 1.25rem; }
     .stat-ok span { font-family: 'Oswald', sans-serif; font-size: 2.5rem; color: #16a34a; }
     .stat-err span { font-family: 'Oswald', sans-serif; font-size: 2.5rem; color: var(--primary); }
@@ -247,8 +238,9 @@
       <p class="page-sub">Upload files, paste notes, or enter contacts manually &mdash; all feed into one shared queue.</p>
     </div>
 
-    <!-- ── Section 1: File Upload ── -->
-    <div class="s-card">
+    <!-- ── Sections 1+2: File Upload and Paste (side by side) ── -->
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:1.25rem;margin-top:1.25rem;align-items:start;">
+    <div class="s-card" style="margin-top:0;">
       <div class="s-label">Upload Files</div>
       <div class="drop-zone" id="drop-zone" onclick="document.getElementById('file-input').click()">
         <div class="drop-icon">&#x1F4C2;</div>
@@ -258,13 +250,17 @@
       <input type="file" id="file-input" multiple style="display:none;" />
       <div id="file-list" style="margin-top:1rem;display:none;">
         <div id="file-list-items" style="margin-bottom:.85rem;"></div>
-        <button class="btn-red" onclick="startUpload()">Upload &amp; Map with AI</button>
+        <button class="btn-red" id="upload-btn" onclick="startUpload()">Upload &amp; Map with AI</button>
       </div>
       <div id="upload-status" style="display:none;margin-top:1rem;"></div>
+      <div id="file-import-bar" style="display:none;margin-top:.85rem;display:none;align-items:center;gap:.75rem;">
+        <span id="file-import-count" style="font-size:.82rem;color:#6b7280;"></span>
+        <button class="btn-red" style="font-size:.78rem;padding:.45rem 1rem;" onclick="importSection('file')">Import File Contacts</button>
+      </div>
     </div>
 
     <!-- ── Section 2: Paste Text ── -->
-    <div class="s-card">
+    <div class="s-card" style="margin-top:0;">
       <div class="s-label">Paste Notes</div>
       <p style="font-size:.8rem;color:var(--muted);margin-bottom:.75rem;">Type or paste notes &mdash; AI extracts names, dates, method, and status automatically.</p>
       <textarea id="paste-text" rows="5" class="form-control" placeholder="e.g. Called John Smith on June 17th, had a great conversation about the upcoming event. He's interested in volunteering.&#10;&#10;Knocked on Jane Doe's door, no answer."></textarea>
@@ -272,6 +268,11 @@
         <button type="button" id="paste-btn" onclick="processPaste()" class="btn-red">Process Text</button>
         <div id="paste-status" style="display:none;font-size:.82rem;color:var(--muted);"></div>
       </div>
+      <div id="paste-import-bar" style="display:none;margin-top:.85rem;align-items:center;gap:.75rem;">
+        <span id="paste-import-count" style="font-size:.82rem;color:#6b7280;"></span>
+        <button class="btn-red" style="font-size:.78rem;padding:.45rem 1rem;" onclick="importSection('paste')">Import Text Contacts</button>
+      </div>
+    </div>
     </div>
 
     <!-- ── Section 3: Manual Entry ── -->
@@ -280,13 +281,17 @@
       <p style="font-size:.8rem;color:var(--muted);margin-bottom:1rem;">Enter contacts manually. Add as many as you need — all will be included when you click Import.</p>
       <div id="manual-forms-container"></div>
       <button type="button" class="btn-gold" onclick="addManualForm()">+ Add Another Contact</button>
+      <div style="margin-top:1rem;display:flex;align-items:center;gap:.75rem;">
+        <button class="btn-red" style="font-size:.82rem;" onclick="importSection('manual')">Import Manual Contacts</button>
+        <span id="manual-import-count" style="font-size:.82rem;color:#6b7280;"></span>
+      </div>
     </div>
 
     <!-- ── Section 4: Shared Preview Queue ── -->
     <div class="s-card" id="preview-section" style="display:none;">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem;">
         <div class="s-label" style="margin-bottom:0;">
-          Import Queue
+          Staged Contacts
           <span id="queue-badge" class="queue-badge">0</span>
         </div>
         <span style="font-size:.75rem;color:var(--muted);">Click any cell to edit &middot; <button type="button" onclick="addBlankRow()" style="background:none;border:none;color:var(--gold);font-size:.75rem;cursor:pointer;font-family:'Oswald',sans-serif;letter-spacing:.06em;text-transform:uppercase;">+ Add Blank Row</button></span>
@@ -330,6 +335,12 @@
           <div class="form-text">Applied to rows that don't already have a date.</div>
         </div>
       </div>
+      <div style="margin-top:1.25rem;display:flex;align-items:center;gap:1rem;flex-wrap:wrap;">
+        <button class="btn-red-lg" id="import-btn" onclick="runImport()" style="min-width:220px;">
+          Import All <span id="import-count">0</span> Contacts
+        </button>
+        <span style="font-size:.82rem;color:#6b7280;"><strong id="footer-count" style="color:#111827;">0</strong> contacts staged</span>
+      </div>
     </div>
 
     <!-- Results section (hidden until import) -->
@@ -341,16 +352,6 @@
         <button class="btn-outline" onclick="resetAll()">Clear &amp; Start Over</button>
       </div>
     </div>
-  </div>
-
-  <!-- Import footer bar -->
-  <div class="import-footer" id="import-footer">
-    <div class="import-footer-info">
-      <strong id="footer-count">0</strong> contacts in queue
-    </div>
-    <button class="btn-red-lg" id="import-btn" onclick="runImport()" disabled>
-      Import All <span id="import-count">0</span> Contacts
-    </button>
   </div>
 
   <!-- Lookup overlay modal -->
@@ -373,6 +374,8 @@
 
     // ── Shared state ──────────────────────────────────────────────────
     let allRows = [];          // rows ready for import (from files, paste, flushed manual)
+    let fileRows = [];
+    let pasteRows = [];
     let manualForms = [];      // [{id, data}] — unflushed manual forms
     let manualFormCounter = 0;
     let activeLookupDropdown = null;
@@ -417,16 +420,21 @@
     }
 
     function setFiles(files) {
-      selectedFiles = files;
+      // Accumulate — merge new files with existing, deduplicate by name+size
+      const existing = new Map(selectedFiles.map(f => [f.name + f.size, f]));
+      files.forEach(f => existing.set(f.name + f.size, f));
+      selectedFiles = Array.from(existing.values());
       const listEl = document.getElementById('file-list');
       const itemsEl = document.getElementById('file-list-items');
-      itemsEl.innerHTML = files.map((f, i) => `
+      itemsEl.innerHTML = selectedFiles.map((f, i) => `
         <div class="file-row" id="file-row-${i}">
           <span class="file-icon">${fileIcon(f.name)}</span>
           <span class="file-name" title="${f.name}">${f.name}</span>
           <span class="file-status status-waiting" id="file-status-${i}">Waiting</span>
         </div>`).join('');
       listEl.style.display = 'block';
+      const btn = document.getElementById('upload-btn');
+      if (btn) btn.textContent = `Upload & Map with AI (${selectedFiles.length} file${selectedFiles.length !== 1 ? 's' : ''})`;
     }
 
     function setFileStatus(i, cls, text) {
@@ -448,7 +456,14 @@
         return;
       }
       const newRows = allResults.flatMap(r => r.all_rows || []);
+      fileRows = fileRows.concat(newRows);
       addToQueue(newRows);
+      const bar = document.getElementById('file-import-bar');
+      const cnt = document.getElementById('file-import-count');
+      if (bar && cnt) {
+        cnt.textContent = `${fileRows.length} contact${fileRows.length !== 1 ? 's' : ''} from files`;
+        bar.style.display = 'flex';
+      }
       status.innerHTML = anyError
         ? `<div class="alert-warn">Processed with some errors &mdash; ${newRows.length} rows added to queue.</div>`
         : `<div class="alert-ok">&#x2713; All files processed &mdash; ${newRows.length} rows added to queue.</div>`;
@@ -491,8 +506,15 @@
         });
         const json = await resp.json();
         if (!json.success) throw new Error(json.error || 'Unknown error');
+        pasteRows = pasteRows.concat(json.all_rows);
         addToQueue(json.all_rows);
-        status.innerHTML = `<span style="color:#4ade80;">&#x2713; ${json.all_rows.length} contact${json.all_rows.length !== 1 ? 's' : ''} extracted and added to queue.</span>`;
+        status.innerHTML = `<span style="color:#16a34a;">&#x2713; ${json.all_rows.length} contact${json.all_rows.length !== 1 ? 's' : ''} extracted and added to queue.</span>`;
+        const bar = document.getElementById('paste-import-bar');
+        const cnt = document.getElementById('paste-import-count');
+        if (bar && cnt) {
+          cnt.textContent = `${pasteRows.length} contact${pasteRows.length !== 1 ? 's' : ''} from text`;
+          bar.style.display = 'flex';
+        }
         document.getElementById('paste-text').value = '';
       } catch (err) {
         status.innerHTML = `<span style="color:#e57373;">Error: ${err.message}</span>`;
@@ -519,11 +541,19 @@
     function updateQueueCount() {
       const totalFromManual = countUnflushedManualRows();
       const total = allRows.length + totalFromManual;
-      document.getElementById('queue-badge').textContent = allRows.length;
-      document.getElementById('footer-count').textContent = total;
-      document.getElementById('import-count').textContent = total;
+      const queueBadge = document.getElementById('queue-badge');
+      if (queueBadge) queueBadge.textContent = allRows.length;
+      const footerCount = document.getElementById('footer-count');
+      if (footerCount) footerCount.textContent = total;
+      const importCount = document.getElementById('import-count');
+      if (importCount) importCount.textContent = total;
       const btn = document.getElementById('import-btn');
-      btn.disabled = (total === 0);
+      if (btn) btn.disabled = (total === 0);
+      const manualCnt = document.getElementById('manual-import-count');
+      if (manualCnt) {
+        const n = countUnflushedManualRows();
+        manualCnt.textContent = n > 0 ? `${n} contact${n !== 1 ? 's' : ''} ready` : '';
+      }
     }
 
     function countUnflushedManualRows() {
@@ -953,6 +983,60 @@
     // ── Import ────────────────────────────────────────────────────────
     let _lastErrors = [];
 
+    async function importSection(section) {
+      const authorId = document.getElementById('default_author_id').value.trim();
+      if (!authorId) { alert('Please fill in the Default Author ID in Import Options below first.'); return; }
+      const importedBy = document.getElementById('imported_by').value.trim();
+      const defaultDate = document.getElementById('default_contact_date').value.trim();
+
+      let rows = [];
+      if (section === 'file') rows = fileRows.slice();
+      else if (section === 'paste') rows = pasteRows.slice();
+      else if (section === 'manual') {
+        rows = manualForms
+          .filter(f => { const d = f.data; return d.signup_id || d._first_name || d._last_name || d._full_name || d.content; })
+          .map(f => Object.assign({}, f.data));
+      }
+
+      if (!rows.length) { alert('No contacts to import in this section.'); return; }
+
+      rows = rows.map(r => ({ ...r, author_id: r.author_id || authorId, contact_date: r.contact_date || defaultDate || '' }));
+
+      const btn = event.currentTarget;
+      const origText = btn.textContent;
+      btn.disabled = true; btn.textContent = 'Importing…';
+
+      try {
+        const resp = await fetch('/bulk/import', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ nation_slug: NATION_SLUG, rows, imported_by: importedBy }),
+        });
+        const json = await resp.json();
+        // Remove imported rows from allRows
+        if (section === 'file') {
+          allRows = allRows.filter(r => !fileRows.includes(r));
+          fileRows = [];
+          document.getElementById('file-import-bar').style.display = 'none';
+        } else if (section === 'paste') {
+          allRows = allRows.filter(r => !pasteRows.includes(r));
+          pasteRows = [];
+          document.getElementById('paste-import-bar').style.display = 'none';
+        } else if (section === 'manual') {
+          manualForms = [];
+          document.getElementById('manual-forms-container').innerHTML = '';
+          addManualForm();
+        }
+        updateQueueCount();
+        _lastErrors = json.results.errors || [];
+        showResults(json.results, rows.length);
+      } catch (err) {
+        alert(`Import failed: ${err.message}`);
+      } finally {
+        btn.disabled = false; btn.textContent = origText;
+      }
+    }
+
     async function runImport() {
       const authorId = document.getElementById('default_author_id').value.trim();
       if (!authorId) { alert('Please enter a default Author ID.'); return; }
@@ -1053,6 +1137,8 @@
 
     function resetAll() {
       allRows = [];
+      fileRows = [];
+      pasteRows = [];
       manualForms = [];
       manualFormCounter = 0;
       document.getElementById('preview-body').innerHTML = '';
@@ -1067,6 +1153,10 @@
       document.getElementById('file-input').value = '';
       document.getElementById('manual-forms-container').innerHTML = '';
       selectedFiles = [];
+      const fileBar = document.getElementById('file-import-bar');
+      const pasteBar = document.getElementById('paste-import-bar');
+      if (fileBar) fileBar.style.display = 'none';
+      if (pasteBar) pasteBar.style.display = 'none';
       addManualForm();
       updateQueueCount();
       window.scrollTo(0, 0);
