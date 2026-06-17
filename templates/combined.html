@@ -233,9 +233,20 @@
   </nav>
 
   <div class="page">
-    <div style="margin-bottom:1.75rem;">
-      <h1 class="page-title">Import Contacts</h1>
-      <p class="page-sub">Upload files, paste notes, or enter contacts manually &mdash; all feed into one shared queue.</p>
+    <input type="hidden" id="default_author_id" value="{{ author_nb_id }}" />
+    <input type="hidden" id="imported_by" value="{{ current_user.name }}" />
+    <input type="hidden" id="default_contact_date" value="" />
+    <div style="margin-bottom:1.75rem;display:flex;align-items:flex-start;justify-content:space-between;flex-wrap:wrap;gap:1rem;">
+      <div>
+        <h1 class="page-title">Import Contacts</h1>
+        <p class="page-sub">Upload files, paste notes, or enter contacts manually &mdash; all feed into one shared queue.</p>
+      </div>
+      <div style="display:flex;align-items:center;gap:.75rem;flex-shrink:0;padding-top:.35rem;">
+        <button class="btn-red-lg" id="import-btn" onclick="runImport()" disabled>
+          Import All <span id="import-count">0</span> Contacts
+        </button>
+        <span style="font-size:.82rem;color:#6b7280;"><strong id="footer-count" style="color:#111827;">0</strong> staged</span>
+      </div>
     </div>
 
     <!-- ── Sections 1+2: File Upload and Paste (side by side) ── -->
@@ -313,35 +324,6 @@
       </div>
     </div>
 
-    <!-- ── Section 5: Import Options ── -->
-    <div class="s-card">
-      <div class="s-label">Import Options</div>
-      <div class="row-2" style="margin-bottom:.85rem;">
-        <div class="col-half">
-          <label class="form-label">Default Author ID <span style="color:var(--red);">*</span></label>
-          <input type="text" class="form-control" id="default_author_id" placeholder="Your NationBuilder ID" />
-          <div class="form-text">Used for rows without an author column.</div>
-        </div>
-        <div class="col-half">
-          <label class="form-label">Imported by</label>
-          <input type="text" class="form-control" id="imported_by" placeholder="Your name" />
-          <div class="form-text">Stamped on every contact note with timestamp.</div>
-        </div>
-      </div>
-      <div class="row-2">
-        <div class="col-half">
-          <label class="form-label">Default Date Contacted <span style="color:var(--muted);font-weight:400;">(optional)</span></label>
-          <input type="date" class="form-control" id="default_contact_date" />
-          <div class="form-text">Applied to rows that don't already have a date.</div>
-        </div>
-      </div>
-      <div style="margin-top:1.25rem;display:flex;align-items:center;gap:1rem;flex-wrap:wrap;">
-        <button class="btn-red-lg" id="import-btn" onclick="runImport()" style="min-width:220px;">
-          Import All <span id="import-count">0</span> Contacts
-        </button>
-        <span style="font-size:.82rem;color:#6b7280;"><strong id="footer-count" style="color:#111827;">0</strong> contacts staged</span>
-      </div>
-    </div>
 
     <!-- Results section (hidden until import) -->
     <div id="results-section" style="display:none;margin-top:1.25rem;">
@@ -386,10 +368,6 @@
 
     // ── On load ───────────────────────────────────────────────────────
     window.addEventListener('DOMContentLoaded', () => {
-      const authorId = "{{ author_nb_id }}";
-      if (authorId) document.getElementById('default_author_id').value = authorId;
-      const userName = "{{ current_user.name }}";
-      if (userName) document.getElementById('imported_by').value = userName;
       // Start with one blank manual form
       addManualForm();
     });
@@ -1066,7 +1044,7 @@
 
     async function importSection(section) {
       const authorId = document.getElementById('default_author_id').value.trim();
-      if (!authorId) { alert('Please fill in the Default Author ID in Import Options below first.'); return; }
+      if (!authorId) { alert('Author ID is missing. Please sign out and sign back in.'); return; }
       const importedBy = document.getElementById('imported_by').value.trim();
       const defaultDate = document.getElementById('default_contact_date').value.trim();
 
