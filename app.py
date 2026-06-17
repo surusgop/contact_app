@@ -717,6 +717,18 @@ def _ordinal_date(dt: datetime) -> str:
     suffix = "th" if 11 <= day <= 13 else {1: "st", 2: "nd", 3: "rd"}.get(day % 10, "th")
     return dt.strftime(f"%B {day}{suffix}, %Y")
 
+_DATE_FMTS = ("%Y-%m-%d", "%m/%d/%Y", "%m/%d/%y", "%d/%m/%Y",
+              "%B %d, %Y", "%b %d, %Y", "%Y/%m/%d", "%m-%d-%Y", "%m-%d-%y")
+
+def _spell_date(date_str: str) -> str:
+    """Convert any recognizable date string to 'June 17th, 2026' form."""
+    for fmt in _DATE_FMTS:
+        try:
+            return _ordinal_date(datetime.strptime(date_str.strip(), fmt))
+        except Exception:
+            pass
+    return date_str  # return as-is if unrecognized
+
 
 def log_action(action: str, user_email: str, user_name: str,
                nation_slug: str = "", details: dict = None,
@@ -1068,7 +1080,102 @@ def parse_upload(file) -> pd.DataFrame:
             return pd.DataFrame({"text": [l for l in text.splitlines() if l.strip()]})
         except ImportError:
             return pd.DataFrame({"error": ["Install pdfplumber to parse PDFs: pip install pdfplumber"]})
-    elif any(name.endswith(f".{ext}") for ext in ("png", "jpg", "jpeg", "gif", "bmp", "webp", "tiff", "heic", "heif")):
+    elif name.endswith(".ods"):
+        return pd.read_excel(io.BytesIO(raw), engine="odf")
+    elif name.endswith(".pptx"):
+        from pptx import Presentation
+        prs = Presentation(io.BytesIO(raw))
+        rows = []
+        for slide in prs.slides:
+            for shape in slide.shapes:
+                if shape.has_table:
+                    tbl = shape.table
+                    headers = [tbl.cell(0, c).text.strip() for c in range(len(tbl.columns))]
+                    for r in range(1, len(tbl.rows)):
+                        rows.append({headers[c]: tbl.cell(r, c).text.strip() for c in range(len(tbl.columns))})
+                elif shape.has_text_frame:
+                    txt = shape.text_frame.text.strip()
+                    if txt:
+                        rows.append({"text": txt})
+        return pd.DataFrame(rows) if rows else pd.DataFrame({"text": ["No content found"]})
+    elif name.endswith(".rtf"):
+        from striprtf.striprtf import rtf_to_text
+        text = rtf_to_text(raw.decode("latin-1", errors="ignore"))
+        return pd.DataFrame({"text": [l for l in text.splitlines() if l.strip()]})
+    elif name.endswith(".eml"):
+        import email as emaillib
+        from email import policy as email_policy
+        msg = emaillib.message_from_bytes(raw, policy=email_policy.default)
+        body = ""
+        for part in msg.walk():
+            if part.get_content_type() == "text/plain":
+                body += part.get_content() or ""
+        subject = str(msg.get("Subject", ""))
+        sender = str(msg.get("From", ""))
+        lines = [l for l in body.splitlines() if l.strip()]
+        return pd.DataFrame({"from": sender, "subject": subject, "text": lines} if lines else {"from": [sender], "subject": [subject], "text": ["(no body)"]})
+    elif name.endswith(".msg"):
+        import tempfile, extract_msg as emsg
+        with tempfile.NamedTemporaryFile(suffix=".msg", delete=False) as f:
+            f.write(raw); tmppath = f.name
+        try:
+            with emsg.Message(tmppath) as m:
+                body = m.body or ""
+                sender = m.sender or ""
+                subject = m.subject or ""
+        finally:
+            os.unlink(tmppath)
+        lines = [l for l in body.splitlines() if l.strip()]
+        return pd.DataFrame({"from": sender, "subject": subject, "text": lines} if lines else {"from": [sender], "subject": [subject], "text": ["(no body)"]})
+    elif name.endswith(".numbers"):
+        import tempfile
+        from numbers_parser import Document as NDoc
+        with tempfile.NamedTemporaryFile(suffix=".numbers", delete=False) as f:
+            f.write(raw); tmppath = f.name
+        try:
+            doc = NDoc(tmppath)
+            sheet = doc.sheets[0]
+            table = sheet.tables[0]
+            all_rows = [[cell.value for cell in row] for row in table.iter_rows()]
+            headers = [str(h) if h is not None else f"col{i}" for i, h in enumerate(all_rows[0])]
+            data = [dict(zip(headers, [str(v) if v is not None else "" for v in row])) for row in all_rows[1:]]
+        finally:
+            os.unlink(tmppath)
+        return pd.DataFrame(data) if data else pd.DataFrame({"text": ["No data"]})
+    elif name.endswith(".zip"):
+        import zipfile
+        dfs = []
+        with zipfile.ZipFile(io.BytesIO(raw)) as zf:
+            for entry in zf.namelist():
+                if entry.startswith("__MACOSX") or entry.startswith(".") or entry.endswith("/"):
+                    continue
+                with zf.open(entry) as f:
+                    inner_raw = f.read()
+                class _F:
+                    filename = entry
+                    def read(self): return inner_raw
+                try:
+                    dfs.append(parse_upload(_F()))
+                except Exception:
+                    pass
+        if dfs:
+            return pd.concat(dfs, ignore_index=True)
+        return pd.DataFrame({"text": ["No parseable files in ZIP"]})
+    elif name.endswith(".svg"):
+        import xml.etree.ElementTree as ET
+        try:
+            tree = ET.fromstring(raw.decode("utf-8", errors="ignore"))
+            texts = [el.text.strip() for el in tree.iter() if el.text and el.text.strip()]
+            return pd.DataFrame({"text": texts}) if texts else parse_image_with_ai(raw, file.filename)
+        except Exception:
+            return parse_image_with_ai(raw, file.filename)
+    elif name.endswith((".doc", ".ppt")):
+        # Best-effort: extract readable strings from old binary Office formats
+        import re
+        text = raw.decode("latin-1", errors="ignore")
+        strings = [s.strip() for s in re.findall(r'[\x20-\x7e]{5,}', text) if s.strip()]
+        return pd.DataFrame({"text": strings[:300]}) if strings else pd.DataFrame({"text": ["Could not extract text"]})
+    elif any(name.endswith(f".{ext}") for ext in ("png", "jpg", "jpeg", "gif", "bmp", "webp", "tiff", "heic", "heif", "avif", "raw", "cr2", "cr3", "nef", "arw")):
         return parse_image_with_ai(raw, file.filename)
     else:
         try:
@@ -1380,11 +1487,7 @@ def bulk_import():
         parts = []
         contact_date = str(row.get("contact_date", "") or "").strip()
         if contact_date:
-            try:
-                formatted_date = _ordinal_date(datetime.strptime(contact_date, "%Y-%m-%d"))
-            except Exception:
-                formatted_date = contact_date
-            parts.append(f"Date Contacted: {formatted_date}")
+            parts.append(f"Date Contacted: {_spell_date(contact_date)}")
         existing_content = attributes.get("content", "") or ""
         if existing_content:
             parts.append(existing_content)
@@ -1504,11 +1607,7 @@ def import_contact():
     contact_date = form.get("contact_date", "").strip()
     content_parts = []
     if contact_date:
-        try:
-            formatted_date = _ordinal_date(datetime.strptime(contact_date, "%Y-%m-%d"))
-        except Exception:
-            formatted_date = contact_date
-        content_parts.append(f"Date Contacted: {formatted_date}")
+        content_parts.append(f"Date Contacted: {_spell_date(contact_date)}")
     if content:
         content_parts.append(content)
     if content_parts:

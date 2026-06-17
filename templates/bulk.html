@@ -270,7 +270,7 @@
         <div class="drop-zone" id="drop-zone" onclick="document.getElementById('file-input').click()">
           <div class="drop-icon">📂</div>
           <div class="drop-title">Drop files here or click to browse</div>
-          <div class="drop-sub">Select multiple files — CSV, Excel, Word, TXT, PDF, JSON, Images (PNG, JPG, etc.)</div>
+          <div class="drop-sub">CSV, Excel, Word, PDF, JSON, PowerPoint, Numbers, ODS, RTF, ZIP, Images (JPG, PNG, HEIC, etc.)</div>
         </div>
         <input type="file" id="file-input" multiple style="display:none;" />
         <div id="file-list" style="margin-top:1rem;display:none;">
@@ -579,8 +579,22 @@
           input.addEventListener('change', () => { rowData.signup_id = input.value.trim(); });
           const btn = document.createElement('button');
           btn.type = 'button'; btn.className = 'find-btn';
+          // If no name available, show a name input so the user can type one
+          let dynFirst = firstName, dynLast = lastName;
+          if (!dynFirst && !dynLast) {
+            const nameInput = document.createElement('input');
+            nameInput.type = 'text'; nameInput.placeholder = 'Type name…';
+            nameInput.style.cssText = 'background:transparent;border:none;border-bottom:1px solid rgba(212,168,75,.4);color:var(--gold);font-size:.78rem;font-family:Inter,sans-serif;width:110px;outline:none;padding:.1rem .2rem;';
+            nameInput.addEventListener('input', () => {
+              const parts = nameInput.value.trim().split(/\s+/);
+              dynFirst = parts[0] || ''; dynLast = parts.slice(1).join(' ') || '';
+              rowData._first_name = dynFirst; rowData._last_name = dynLast;
+              btn.textContent = nameInput.value.trim() ? `Find ${nameInput.value.trim()}` : 'Find';
+            });
+            wrapper.appendChild(nameInput);
+          }
           btn.textContent = `Find ${firstName} ${lastName}`.trim() || 'Find';
-          btn.addEventListener('click', (e) => { e.stopPropagation(); openLookup(btn, input, rowData, firstName, lastName); });
+          btn.addEventListener('click', (e) => { e.stopPropagation(); openLookup(btn, input, rowData, dynFirst, dynLast); });
           wrapper.appendChild(input); wrapper.appendChild(btn);
           td.appendChild(wrapper);
         } else if (field === 'content') {
