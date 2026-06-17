@@ -559,6 +559,22 @@
       window.scrollTo(0, 0);
     }
 
+    function spellDate(dateStr) {
+      if (!dateStr) return dateStr;
+      const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+      const ordinal = d => {
+        const s = (d >= 11 && d <= 13) ? 'th' : ({1:'st',2:'nd',3:'rd'}[d % 10] || 'th');
+        return d + s;
+      };
+      // YYYY-M-D or YYYY-MM-DD
+      const iso = dateStr.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/);
+      if (iso) return `${MONTHS[+iso[2]-1]} ${ordinal(+iso[3])}, ${iso[1]}`;
+      // M/D/YYYY or MM/DD/YYYY
+      const us = dateStr.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+      if (us) return `${MONTHS[+us[1]-1]} ${ordinal(+us[2])}, ${us[3]}`;
+      return dateStr;
+    }
+
     function renderPreviewRow(body, rowData, nbFields) {
       const tr = document.createElement('tr');
       nbFields.forEach(field => {
@@ -620,6 +636,11 @@
           });
           sel.addEventListener('change', () => { rowData[field] = sel.value; });
           td.appendChild(sel);
+        } else if (field === 'contact_date') {
+          const input = document.createElement('input');
+          input.type = 'text'; input.value = spellDate(rowData[field] ?? '');
+          input.addEventListener('change', () => { rowData[field] = input.value.trim(); });
+          td.appendChild(input);
         } else {
           const input = document.createElement('input');
           input.type = 'text'; input.value = rowData[field] ?? '';
