@@ -1247,6 +1247,7 @@ def bulk_import():
         "Accept": "application/json",
     }
     results = {"success": 0, "failed": 0, "errors": []}
+    contacts_logged = []
     for i, row in enumerate(rows):
         attributes = {k: v for k, v in row.items()
                       if k in ("contact_method", "contact_status", "content")}
@@ -1287,6 +1288,12 @@ def bulk_import():
             resp = requests.post(url, headers=headers, json=body)
             resp.raise_for_status()
             results["success"] += 1
+            name = (row.get("_full_name") or
+                    f"{row.get('_first_name', '')} {row.get('_last_name', '')}".strip())
+            contacts_logged.append({
+                "signup_id": row.get("signup_id", ""),
+                "name": name,
+            })
         except requests.HTTPError as e:
             results["failed"] += 1
             try:
@@ -1307,6 +1314,7 @@ def bulk_import():
         "imported": results["success"],
         "failed": results["failed"],
         "imported_by": imported_by or current_user.name,
+        "contacts_logged": contacts_logged,
     }, success=results["failed"] == 0)
     return jsonify({"success": True, "results": results})
 
