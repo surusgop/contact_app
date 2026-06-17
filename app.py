@@ -1,5 +1,6 @@
 import os
 import io
+import re
 import json
 import base64
 try:
@@ -722,9 +723,16 @@ _DATE_FMTS = ("%Y-%m-%d", "%m/%d/%Y", "%m/%d/%y", "%d/%m/%Y",
 
 def _spell_date(date_str: str) -> str:
     """Convert any recognizable date string to 'June 17th, 2026' form."""
+    s = date_str.strip()
+    # Normalize non-zero-padded ISO dates: "2026-6-17" → "2026-06-17"
+    s = re.sub(
+        r'^(\d{4})-(\d{1,2})-(\d{1,2})$',
+        lambda m: f"{m.group(1)}-{int(m.group(2)):02d}-{int(m.group(3)):02d}",
+        s,
+    )
     for fmt in _DATE_FMTS:
         try:
-            return _ordinal_date(datetime.strptime(date_str.strip(), fmt))
+            return _ordinal_date(datetime.strptime(s, fmt))
         except Exception:
             pass
     return date_str  # return as-is if unrecognized
@@ -1263,10 +1271,15 @@ def _apply_mapping_locally(column_mapping: dict, all_rows: list) -> list:
                 resolved = statuses_map.get(val.lower(), statuses_map.get(key))
                 row[nb] = resolved if resolved in CONTACT_STATUSES else "other"
             elif nb == "contact_date":
+                normalized = re.sub(
+                    r'^(\d{4})-(\d{1,2})-(\d{1,2})$',
+                    lambda m: f"{m.group(1)}-{int(m.group(2)):02d}-{int(m.group(3)):02d}",
+                    val.strip(),
+                )
                 parsed = None
                 for fmt in date_fmts:
                     try:
-                        parsed = datetime.strptime(val, fmt).strftime("%Y-%m-%d")
+                        parsed = datetime.strptime(normalized, fmt).strftime("%Y-%m-%d")
                         break
                     except Exception:
                         pass
