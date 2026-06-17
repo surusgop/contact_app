@@ -399,6 +399,8 @@
     const fileInput = document.getElementById('file-input');
     let selectedFiles = [];
     let allRows = [];
+    const CONTACT_METHODS = {{ contact_methods | tojson }};
+    const CONTACT_STATUSES = {{ contact_statuses | tojson }};
 
     dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('dragover'); });
     dropZone.addEventListener('dragleave', () => dropZone.classList.remove('dragover'));
@@ -569,6 +571,21 @@
           ta.addEventListener('focus', () => { ta.style.background='rgba(197,48,48,.1)'; ta.style.outline='1px solid var(--red)'; ta.style.borderRadius='4px'; });
           ta.addEventListener('blur', () => { ta.style.background='transparent'; ta.style.outline='none'; rowData[field] = ta.value.trim(); });
           td.appendChild(ta);
+        } else if (field === 'contact_method' || field === 'contact_status') {
+          const options = field === 'contact_method' ? CONTACT_METHODS : CONTACT_STATUSES;
+          const sel = document.createElement('select');
+          sel.style.cssText = 'background:var(--input-bg);border:1px solid var(--border);color:var(--text);font-size:.8rem;font-family:Inter,sans-serif;padding:.2rem .4rem;width:100%;border-radius:4px;';
+          const blank = document.createElement('option');
+          blank.value = ''; blank.textContent = '— select —';
+          sel.appendChild(blank);
+          options.forEach(v => {
+            const opt = document.createElement('option');
+            opt.value = v; opt.textContent = v.replace(/_/g, ' ');
+            if (v === (rowData[field] ?? '')) opt.selected = true;
+            sel.appendChild(opt);
+          });
+          sel.addEventListener('change', () => { rowData[field] = sel.value; });
+          td.appendChild(sel);
         } else {
           const input = document.createElement('input');
           input.type = 'text'; input.value = rowData[field] ?? '';

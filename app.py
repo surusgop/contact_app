@@ -1191,7 +1191,9 @@ def bulk():
     return render_template("bulk.html",
                            default_nation_slug=session.get("default_nation_slug", ""),
                            default_nation_name=session.get("default_nation_name", ""),
-                           author_nb_id=session.get("author_nb_id", ""))
+                           author_nb_id=session.get("author_nb_id", ""),
+                           contact_methods=CONTACT_METHODS,
+                           contact_statuses=CONTACT_STATUSES)
 
 
 @app.route("/bulk/upload", methods=["POST"])
