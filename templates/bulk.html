@@ -137,6 +137,24 @@
       background: rgba(197,48,48,.1); border-radius: 4px;
       outline: 1px solid var(--red);
     }
+    td select.nb-select {
+      background: rgba(212,168,75,.08);
+      border: 1px solid rgba(212,168,75,.4);
+      border-radius: 5px;
+      color: var(--gold);
+      font-size: .78rem; font-family: 'Inter', sans-serif;
+      padding: .2rem .4rem; width: 100%; outline: none; cursor: pointer;
+      appearance: none; -webkit-appearance: none;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%23d4a84b' opacity='.6'/%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-position: right .45rem center;
+      padding-right: 1.4rem;
+    }
+    td select.nb-select:focus {
+      border-color: var(--gold);
+      box-shadow: 0 0 0 2px rgba(212,168,75,.2);
+    }
+    td select.nb-select option { background: #1e2d40; color: var(--text); }
     .find-btn {
       background: rgba(212,168,75,.15); border: 1px solid rgba(212,168,75,.35);
       color: var(--gold); border-radius: 5px; font-size: .7rem; font-family: 'Oswald', sans-serif;
@@ -574,7 +592,7 @@
         } else if (field === 'contact_method' || field === 'contact_status') {
           const options = field === 'contact_method' ? CONTACT_METHODS : CONTACT_STATUSES;
           const sel = document.createElement('select');
-          sel.style.cssText = 'background:var(--input-bg);border:1px solid var(--border);color:var(--text);font-size:.8rem;font-family:Inter,sans-serif;padding:.2rem .4rem;width:100%;border-radius:4px;';
+          sel.className = 'nb-select';
           const blank = document.createElement('option');
           blank.value = ''; blank.textContent = '— select —';
           sel.appendChild(blank);
