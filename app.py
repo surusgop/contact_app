@@ -773,6 +773,49 @@ def log_action(action: str, user_email: str, user_name: str,
 ensure_log_table()
 
 
+def get_user_nations(email: str) -> list:
+    """Return [{slug, name, author_nb_id}] for nations this user has set up, most recent first."""
+    if not WAREHOUSE_ID:
+        return []
+    try:
+        result = get_db().statement_execution.execute_statement(
+            warehouse_id=WAREHOUSE_ID,
+            statement="""
+                SELECT nation_slug, details
+                FROM universal.logging.contact_app_logs
+                WHERE user_email = :email
+                  AND action = 'nation_setup'
+                  AND nation_slug != ''
+                ORDER BY event_time DESC
+            """,
+            parameters=[StatementParameterListItem(name="email", value=email)],
+            wait_timeout="10s",
+        )
+        if result.status.state != StatementState.SUCCEEDED:
+            return []
+        cols = [c.name for c in result.manifest.schema.columns]
+        rows = [dict(zip(cols, r)) for r in (result.result.data_array or [])]
+        seen = set()
+        nations = []
+        for row in rows:
+            slug = row.get("nation_slug", "")
+            if slug and slug not in seen:
+                seen.add(slug)
+                try:
+                    details = json.loads(row.get("details") or "{}")
+                except Exception:
+                    details = {}
+                nations.append({
+                    "slug": slug,
+                    "name": details.get("nation_name", slug),
+                    "author_nb_id": details.get("author_nb_id", ""),
+                })
+        return nations
+    except Exception as e:
+        print(f"get_user_nations failed: {e}")
+        return []
+
+
 @app.route("/search-nation")
 @login_required
 def search_nation():
@@ -834,7 +877,9 @@ def setup():
         log_action("nation_setup", current_user.email, current_user.name, nation_slug,
                    {"nation_name": nation_name, "author_nb_id": author_nb_id})
         return jsonify({"success": True})
+    user_nations = get_user_nations(current_user.email)
     return render_template("setup.html",
+                           user_nations=user_nations,
                            default_nation_slug=session.get("default_nation_slug", ""),
                            default_nation_name=session.get("default_nation_name", ""),
                            author_nb_id=session.get("author_nb_id", ""))
@@ -1421,12 +1466,7 @@ Return ONLY valid JSON with no markdown:
 @app.route("/bulk")
 @login_required
 def bulk():
-    return render_template("bulk.html",
-                           default_nation_slug=session.get("default_nation_slug", ""),
-                           default_nation_name=session.get("default_nation_name", ""),
-                           author_nb_id=session.get("author_nb_id", ""),
-                           contact_methods=CONTACT_METHODS,
-                           contact_statuses=CONTACT_STATUSES)
+    return redirect("/")
 
 
 @app.route("/bulk/upload", methods=["POST"])
@@ -1636,7 +1676,14 @@ def auth_callback():
     _users[email] = user
     login_user(user, remember=True)
     log_action("login", email, userinfo.get("name", email))
-    return redirect("/setup")
+    nations = get_user_nations(email)
+    if len(nations) == 1:
+        session["default_nation_slug"] = nations[0]["slug"]
+        session["default_nation_name"] = nations[0]["name"]
+        session["author_nb_id"] = nations[0]["author_nb_id"]
+        return redirect("/")
+    else:
+        return redirect("/setup")
 
 @app.route("/logout")
 @login_required
@@ -1648,7 +1695,9 @@ def logout():
 @app.route("/")
 @login_required
 def index():
-    return render_template("index.html",
+    if not session.get("default_nation_slug"):
+        return redirect("/setup")
+    return render_template("combined.html",
                            contact_methods=CONTACT_METHODS,
                            contact_statuses=CONTACT_STATUSES,
                            default_nation_slug=session.get("default_nation_slug", ""),

@@ -176,6 +176,14 @@
     .mb-3 { margin-bottom: 1rem; }
     .mb-4 { margin-bottom: 1.25rem; }
     .position-relative { position: relative; }
+
+    .nation-quick-btn {
+      background: var(--surface-2); border: 1px solid var(--border);
+      border-radius: 8px; padding: .65rem 1rem; cursor: pointer;
+      text-align: left; transition: border-color .15s, background .15s;
+      font-family: 'Inter', sans-serif;
+    }
+    .nation-quick-btn:hover { border-color: var(--gold); background: rgba(212,168,75,.08); }
   </style>
 </head>
 <body>
@@ -196,6 +204,28 @@
         <div class="user-name">{{ current_user.name }}</div>
       </div>
     </div>
+
+    {% if user_nations %}
+    <div class="section-label" style="margin-bottom:.6rem;">Your Nations</div>
+    <p style="font-size:.82rem;color:var(--muted);margin-bottom:.75rem;">Select a nation you've used before, or search for a new one below.</p>
+    <div style="display:flex;flex-direction:column;gap:.5rem;margin-bottom:1.5rem;">
+      {% for nation in user_nations %}
+      <button type="button" class="nation-quick-btn"
+              data-slug="{{ nation.slug }}"
+              data-name="{{ nation.name }}"
+              data-nbid="{{ nation.author_nb_id }}"
+              onclick="quickSelectNation(this)">
+        <span style="font-weight:600;color:var(--text);">{{ nation.name }}</span>
+        <span style="font-size:.75rem;color:var(--muted);margin-left:.5rem;">{{ nation.slug }}</span>
+      </button>
+      {% endfor %}
+    </div>
+    <div style="display:flex;align-items:center;gap:.75rem;margin-bottom:1.25rem;">
+      <div style="flex:1;height:1px;background:var(--border);"></div>
+      <span style="font-size:.75rem;color:var(--muted);">or search for a different nation</span>
+      <div style="flex:1;height:1px;background:var(--border);"></div>
+    </div>
+    {% endif %}
 
     <div class="section-label">Select Your Nation</div>
     <p style="font-size:.84rem;color:var(--muted);margin-bottom:1.25rem;line-height:1.55;">
@@ -260,7 +290,7 @@
       nbIdRow.style.display = 'block';
       if (savedNbId) {
         nbIdInput.value = savedNbId;
-        nbIdHelp.innerHTML = `<span class="ok">✓ Previously saved</span> — edit to change`;
+        nbIdHelp.innerHTML = `<span class="ok">&#x2713; Previously saved</span> &mdash; edit to change`;
         continueBtn.disabled = false;
       }
     }
@@ -329,18 +359,18 @@
         nbIdRow.style.display = 'block';
         if (json.nb_id) {
           nbIdInput.value = json.nb_id;
-          lookupStatus.innerHTML = `<div class="alert-ok">✓ Found: <strong>${json.name || 'your account'}</strong> — ID: <strong>${json.nb_id}</strong></div>`;
-          nbIdHelp.innerHTML = `Auto-filled from your account — edit if needed`;
+          lookupStatus.innerHTML = `<div class="alert-ok">&#x2713; Found: <strong>${json.name || 'your account'}</strong> &mdash; ID: <strong>${json.nb_id}</strong></div>`;
+          nbIdHelp.innerHTML = `Auto-filled from your account &mdash; edit if needed`;
           continueBtn.disabled = false;
         } else {
           nbIdInput.value = '';
-          lookupStatus.innerHTML = `<div class="alert-warn">Account not found in this nation — enter your NB ID manually.</div>`;
+          lookupStatus.innerHTML = `<div class="alert-warn">Account not found in this nation &mdash; enter your NB ID manually.</div>`;
           nbIdInput.focus();
         }
       } catch {
         nbIdRow.style.display = 'block';
         nbIdInput.value = '';
-        lookupStatus.innerHTML = `<div class="alert-warn">Couldn't auto-lookup ID — enter it manually.</div>`;
+        lookupStatus.innerHTML = `<div class="alert-warn">Couldn't auto-lookup ID &mdash; enter it manually.</div>`;
       }
     }
 
@@ -365,6 +395,23 @@
         continueBtn.disabled = false;
         continueBtn.textContent = 'Continue →';
         alert('Error saving: ' + err.message);
+      }
+    }
+
+    function quickSelectNation(btn) {
+      const slug = btn.dataset.slug;
+      const name = btn.dataset.name;
+      const nbId = btn.dataset.nbid;
+      nationSlugInput.value = slug;
+      nationSearch.value = name;
+      selectedNationName = name;
+      nationSlugDisplay.textContent = slug;
+      nationSelected.style.display = 'block';
+      nbIdRow.style.display = 'block';
+      if (nbId) {
+        nbIdInput.value = nbId;
+        nbIdHelp.innerHTML = '<span class="ok">&#x2713; Auto-filled from previous session</span>';
+        continueBtn.disabled = false;
       }
     }
   </script>

@@ -1,0 +1,1127 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Import Contacts — Surus</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #0d1823;
+      --surface: #162032;
+      --surface-2: #1e2d40;
+      --gold: #d4a84b;
+      --red: #c53030;
+      --red-dark: #a82828;
+      --text: #dde4ee;
+      --muted: #5a7a96;
+      --border: #253649;
+      --input-bg: #0f1f2e;
+    }
+
+    body { font-family: 'Inter', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; }
+
+    /* ── Nav ── */
+    .app-nav {
+      background: var(--surface); border-bottom: 2px solid var(--red);
+      padding: .8rem 2rem; display: flex; align-items: center; justify-content: space-between;
+      position: sticky; top: 0; z-index: 100;
+    }
+    .brand { display: flex; align-items: center; gap: .5rem; }
+    .brand-name { font-family: 'Oswald', sans-serif; font-size: 1.15rem; font-weight: 700; color: var(--gold); letter-spacing: .12em; text-transform: uppercase; }
+    .brand-sep { color: var(--red); }
+    .brand-sub { font-family: 'Oswald', sans-serif; font-size: .85rem; color: var(--muted); letter-spacing: .1em; text-transform: uppercase; }
+    .nav-right { display: flex; align-items: center; gap: .6rem; }
+    .user-avatar { width: 30px; height: 30px; border-radius: 50%; border: 2px solid var(--border); }
+    .user-name { font-size: .82rem; color: var(--muted); }
+    .nation-badge { font-size: .82rem; color: var(--gold); font-weight: 500; }
+    .btn-ghost { background: transparent; border: 1px solid var(--border); border-radius: 6px; color: var(--muted); font-size: .78rem; font-family: 'Inter', sans-serif; padding: .35rem .8rem; cursor: pointer; text-decoration: none; transition: border-color .15s, color .15s; }
+    .btn-ghost:hover { border-color: var(--muted); color: var(--text); }
+
+    /* ── Page ── */
+    .page { max-width: 960px; margin: 0 auto; padding: 2rem 1rem 4rem; }
+    .page-title { font-family: 'Oswald', sans-serif; font-size: 1.6rem; font-weight: 700; color: var(--gold); letter-spacing: .06em; text-transform: uppercase; }
+    .page-sub { font-size: .84rem; color: var(--muted); margin-top: .3rem; }
+
+    /* ── Cards ── */
+    .s-card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 1.5rem; margin-top: 1.25rem; }
+    .s-card-gold { background: var(--surface); border: 1px solid rgba(212,168,75,.4); border-radius: 12px; padding: 1.5rem; margin-top: 1.25rem; }
+    .s-label { font-family: 'Oswald', sans-serif; font-size: .68rem; letter-spacing: .16em; text-transform: uppercase; color: var(--gold); margin-bottom: .9rem; }
+
+    /* ── Form controls ── */
+    .form-label { font-size: .78rem; font-weight: 500; color: var(--muted); margin-bottom: .35rem; display: block; }
+    .form-text { font-size: .73rem; color: #3a5269; margin-top: .3rem; }
+    .form-control {
+      width: 100%; background: var(--input-bg); border: 1px solid var(--border);
+      border-radius: 8px; color: var(--text); font-size: .88rem;
+      font-family: 'Inter', sans-serif; padding: .6rem .9rem;
+      transition: border-color .15s, box-shadow .15s; outline: none;
+    }
+    .form-control:focus { border-color: var(--red); box-shadow: 0 0 0 3px rgba(197,48,48,.18); }
+    .form-control::placeholder { color: #2d4155; }
+    .row-2 { display: flex; gap: .85rem; }
+    .col-half { flex: 1; }
+
+    /* ── Drop zone ── */
+    .drop-zone {
+      border: 2px dashed var(--border); border-radius: 10px;
+      padding: 2rem; text-align: center; cursor: pointer;
+      transition: border-color .2s, background .2s;
+    }
+    .drop-zone:hover, .drop-zone.dragover { border-color: var(--red); background: rgba(197,48,48,.05); }
+    .drop-icon { font-size: 2rem; margin-bottom: .5rem; }
+    .drop-title { font-family: 'Oswald', sans-serif; font-size: .95rem; letter-spacing: .06em; text-transform: uppercase; color: var(--text); }
+    .drop-sub { font-size: .78rem; color: var(--muted); margin-top: .3rem; }
+
+    /* ── Buttons ── */
+    .btn-red {
+      background: var(--red); border: none; border-radius: 8px; color: #fff;
+      font-family: 'Oswald', sans-serif; font-size: .9rem; font-weight: 600;
+      letter-spacing: .1em; text-transform: uppercase;
+      padding: .6rem 1.4rem; cursor: pointer;
+      transition: background .15s, transform .1s;
+      box-shadow: 0 4px 12px rgba(197,48,48,.3);
+    }
+    .btn-red:hover { background: var(--red-dark); }
+    .btn-red:active { transform: translateY(1px); }
+    .btn-red:disabled { opacity: .45; cursor: not-allowed; transform: none; }
+    .btn-red-lg {
+      background: var(--red); border: none; border-radius: 10px; color: #fff;
+      font-family: 'Oswald', sans-serif; font-size: 1.1rem; font-weight: 700;
+      letter-spacing: .1em; text-transform: uppercase;
+      padding: .9rem 2.5rem; cursor: pointer;
+      transition: background .15s, transform .1s;
+      box-shadow: 0 6px 20px rgba(197,48,48,.4);
+    }
+    .btn-red-lg:hover { background: var(--red-dark); }
+    .btn-red-lg:active { transform: translateY(1px); }
+    .btn-red-lg:disabled { opacity: .45; cursor: not-allowed; transform: none; }
+    .btn-gold {
+      background: rgba(212,168,75,.12); border: 1px solid rgba(212,168,75,.45);
+      color: var(--gold); border-radius: 8px;
+      font-family: 'Oswald', sans-serif; font-size: .85rem; font-weight: 600;
+      letter-spacing: .08em; text-transform: uppercase;
+      padding: .55rem 1.2rem; cursor: pointer;
+      transition: background .15s;
+    }
+    .btn-gold:hover { background: rgba(212,168,75,.22); }
+    .btn-outline {
+      background: transparent; border: 1px solid var(--border);
+      border-radius: 8px; color: var(--muted);
+      font-family: 'Oswald', sans-serif; font-size: .88rem; font-weight: 600;
+      letter-spacing: .08em; text-transform: uppercase;
+      padding: .6rem 1.4rem; cursor: pointer;
+      transition: border-color .15s, color .15s;
+    }
+    .btn-outline:hover { border-color: var(--muted); color: var(--text); }
+
+    /* ── Status alerts ── */
+    .alert-info { background: rgba(59,130,246,.1); border: 1px solid rgba(59,130,246,.25); border-radius: 8px; padding: .75rem 1rem; font-size: .85rem; color: #93c5fd; }
+    .alert-ok { background: rgba(22,163,74,.1); border: 1px solid rgba(22,163,74,.25); border-radius: 8px; padding: .7rem 1rem; font-size: .84rem; color: #4ade80; }
+    .alert-warn { background: rgba(217,119,6,.1); border: 1px solid rgba(217,119,6,.25); border-radius: 8px; padding: .7rem 1rem; font-size: .84rem; color: #fbbf24; }
+    .alert-err { background: rgba(197,48,48,.1); border: 1px solid rgba(197,48,48,.25); border-radius: 8px; padding: .7rem 1rem; font-size: .84rem; color: #f87171; }
+    .spinner { display: inline-block; width: 14px; height: 14px; border: 2px solid rgba(255,255,255,.3); border-top-color: currentColor; border-radius: 50%; animation: spin 1s linear infinite; vertical-align: middle; margin-right: .4rem; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ── Preview table ── */
+    .table-wrap { overflow-x: auto; border-radius: 8px; border: 1px solid var(--border); }
+    table { width: 100%; border-collapse: collapse; font-size: .8rem; }
+    thead { background: var(--surface-2); }
+    th { padding: .6rem .8rem; text-align: left; font-family: 'Oswald', sans-serif; font-size: .7rem; letter-spacing: .1em; text-transform: uppercase; color: var(--gold); border-bottom: 1px solid var(--border); white-space: nowrap; }
+    td { padding: .35rem .5rem; border-bottom: 1px solid var(--border); vertical-align: top; }
+    tbody tr:last-child td { border-bottom: none; }
+    tbody tr:hover { background: rgba(255,255,255,.02); }
+    td input {
+      background: transparent; border: none; color: var(--text);
+      font-size: .8rem; font-family: 'Inter', sans-serif;
+      padding: .2rem .3rem; width: 100%; outline: none;
+    }
+    td input:focus {
+      background: rgba(197,48,48,.1); border-radius: 4px;
+      outline: 1px solid var(--red);
+    }
+    td select.nb-select {
+      background: rgba(212,168,75,.08);
+      border: 1px solid rgba(212,168,75,.4);
+      border-radius: 5px;
+      color: var(--gold);
+      font-size: .72rem; font-family: 'Oswald', sans-serif;
+      font-weight: 600; letter-spacing: .06em; text-transform: uppercase;
+      padding: .2rem .4rem; width: 100%; outline: none; cursor: pointer;
+      appearance: none; -webkit-appearance: none;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%23d4a84b' opacity='.6'/%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-position: right .45rem center;
+      padding-right: 1.4rem;
+    }
+    td select.nb-select:focus { border-color: var(--gold); box-shadow: 0 0 0 2px rgba(212,168,75,.2); }
+    td select.nb-select option { background: #1e2d40; color: var(--text); }
+    .find-btn {
+      background: rgba(212,168,75,.15); border: 1px solid rgba(212,168,75,.35);
+      color: var(--gold); border-radius: 5px; font-size: .7rem; font-family: 'Oswald', sans-serif;
+      font-weight: 600; letter-spacing: .06em; text-transform: uppercase;
+      padding: .2rem .55rem; cursor: pointer; white-space: nowrap;
+      transition: background .15s;
+    }
+    .find-btn:hover { background: rgba(212,168,75,.25); }
+    .find-btn-ok { background: rgba(22,163,74,.15); border: 1px solid rgba(22,163,74,.3); color: #4ade80; border-radius: 5px; font-size: .7rem; padding: .2rem .55rem; }
+    .del-btn { background: transparent; border: none; color: #3a5269; cursor: pointer; font-size: .85rem; padding: .2rem .45rem; border-radius: 4px; transition: color .15s, background .15s; line-height: 1; }
+    .del-btn:hover { color: #f87171; background: rgba(197,48,48,.12); }
+
+    /* ── Lookup dropdown ── */
+    .lookup-dropdown {
+      position: absolute; z-index: 400; background: var(--surface-2);
+      border: 1px solid var(--border); border-radius: 10px;
+      box-shadow: 0 8px 32px rgba(0,0,0,.6);
+      min-width: 300px; max-height: 240px; overflow-y: auto;
+    }
+    .lookup-item { padding: .6rem .9rem; cursor: pointer; border-bottom: 1px solid var(--border); font-size: .83rem; transition: background .1s; }
+    .lookup-item:hover { background: #253649; }
+    .lookup-item:last-child { border-bottom: none; }
+    .lookup-item .li-name { font-weight: 500; color: var(--text); }
+    .lookup-item .li-addr { font-size: .74rem; color: var(--muted); margin-top: .1rem; }
+    .lookup-item .li-id { font-size: .71rem; color: #3a5269; margin-top: .1rem; }
+
+    /* ── Lookup overlay (modal) ── */
+    .lookup-overlay {
+      display: none; position: fixed; inset: 0; z-index: 500;
+      background: rgba(0,0,0,.6); align-items: center; justify-content: center;
+    }
+    .lookup-overlay.open { display: flex; }
+    .lookup-modal {
+      background: var(--surface); border: 1px solid var(--border); border-radius: 14px;
+      padding: 1.5rem; width: 480px; max-width: 95vw; max-height: 80vh;
+      display: flex; flex-direction: column; gap: .85rem;
+      box-shadow: 0 16px 48px rgba(0,0,0,.7);
+    }
+    .lookup-modal-title { font-family: 'Oswald', sans-serif; font-size: 1rem; letter-spacing: .1em; text-transform: uppercase; color: var(--gold); }
+    .lookup-modal input.form-control { font-size: .88rem; }
+    .lookup-modal-results { flex: 1; overflow-y: auto; border: 1px solid var(--border); border-radius: 8px; }
+
+    /* ── File rows ── */
+    .file-row { display: flex; align-items: center; gap: .65rem; padding: .5rem .75rem; background: var(--surface-2); border: 1px solid var(--border); border-radius: 7px; margin-bottom: .4rem; font-size: .84rem; }
+    .file-row .file-icon { font-size: 1rem; flex-shrink: 0; }
+    .file-row .file-name { flex: 1; color: var(--gold); font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .file-row .file-status { font-size: .76rem; flex-shrink: 0; }
+    .status-waiting { color: var(--muted); }
+    .status-processing { color: #93c5fd; }
+    .status-done { color: #4ade80; }
+    .status-error { color: #f87171; }
+
+    /* ── Manual form card ── */
+    .manual-form-card {
+      background: var(--surface-2); border: 1px solid rgba(212,168,75,.3);
+      border-radius: 10px; padding: 1.1rem 1.25rem; margin-bottom: .85rem;
+    }
+    .manual-form-card .form-grid {
+      display: grid; grid-template-columns: 1fr 1fr; gap: .75rem;
+    }
+    .manual-form-card .form-full { grid-column: 1 / -1; }
+
+    /* ── Results ── */
+    .result-stat { display: flex; gap: 2rem; margin-bottom: 1.25rem; }
+    .stat-ok span { font-family: 'Oswald', sans-serif; font-size: 2.5rem; color: #4ade80; }
+    .stat-err span { font-family: 'Oswald', sans-serif; font-size: 2.5rem; color: #f87171; }
+    .stat-label { font-size: .75rem; color: var(--muted); text-transform: uppercase; letter-spacing: .08em; margin-top: .1rem; }
+    .error-row { background: rgba(197,48,48,.08); border: 1px solid rgba(197,48,48,.2); border-radius: 6px; padding: .5rem .85rem; font-size: .78rem; color: #f87171; margin-bottom: .4rem; }
+
+    /* ── Queue badge ── */
+    .queue-badge {
+      display: inline-flex; align-items: center; justify-content: center;
+      background: var(--red); color: #fff; border-radius: 12px;
+      font-size: .72rem; font-family: 'Oswald', sans-serif; font-weight: 700;
+      min-width: 22px; padding: .1rem .45rem; margin-left: .45rem;
+      vertical-align: middle; line-height: 1.4;
+    }
+
+    /* ── Import footer ── */
+    .import-footer {
+      position: sticky; bottom: 0;
+      background: var(--surface); border-top: 1px solid var(--border);
+      padding: 1rem 2rem; display: flex; align-items: center;
+      justify-content: space-between; gap: 1rem;
+      z-index: 90;
+    }
+    .import-footer-info { font-size: .82rem; color: var(--muted); }
+    .import-footer-info strong { color: var(--text); }
+  </style>
+</head>
+<body>
+
+  <!-- Nav -->
+  <nav class="app-nav">
+    <div class="brand">
+      <span class="brand-name">Surus</span>
+      <span class="brand-sep">&middot;</span>
+      <span class="brand-sub">Contact App</span>
+    </div>
+    <div class="nav-right">
+      {% if current_user.picture %}
+      <img src="{{ current_user.picture }}" class="user-avatar" />
+      {% endif %}
+      <span class="user-name">{{ current_user.name }}</span>
+      <span class="nation-badge">{{ default_nation_name }}</span>
+      <a href="/setup" class="btn-ghost">Change Nation</a>
+      <a href="/logout" class="btn-ghost">Sign Out</a>
+    </div>
+  </nav>
+
+  <div class="page">
+    <div style="margin-bottom:1.75rem;">
+      <h1 class="page-title">Import Contacts</h1>
+      <p class="page-sub">Upload files, paste notes, or enter contacts manually &mdash; all feed into one shared queue.</p>
+    </div>
+
+    <!-- ── Section 1: File Upload ── -->
+    <div class="s-card">
+      <div class="s-label">Upload Files</div>
+      <div class="drop-zone" id="drop-zone" onclick="document.getElementById('file-input').click()">
+        <div class="drop-icon">&#x1F4C2;</div>
+        <div class="drop-title">Drop files here or click to browse</div>
+        <div class="drop-sub">CSV, Excel, Word, PDF, JSON, PowerPoint, Numbers, ODS, RTF, ZIP, Images (JPG, PNG, HEIC, etc.)</div>
+      </div>
+      <input type="file" id="file-input" multiple style="display:none;" />
+      <div id="file-list" style="margin-top:1rem;display:none;">
+        <div id="file-list-items" style="margin-bottom:.85rem;"></div>
+        <button class="btn-red" onclick="startUpload()">Upload &amp; Map with AI</button>
+      </div>
+      <div id="upload-status" style="display:none;margin-top:1rem;"></div>
+    </div>
+
+    <!-- ── Section 2: Paste Text ── -->
+    <div class="s-card">
+      <div class="s-label">Paste Notes</div>
+      <p style="font-size:.8rem;color:var(--muted);margin-bottom:.75rem;">Type or paste notes &mdash; AI extracts names, dates, method, and status automatically.</p>
+      <textarea id="paste-text" rows="5" class="form-control" placeholder="e.g. Called John Smith on June 17th, had a great conversation about the upcoming event. He's interested in volunteering.&#10;&#10;Knocked on Jane Doe's door, no answer."></textarea>
+      <div style="margin-top:.75rem;display:flex;align-items:center;gap:.75rem;">
+        <button type="button" id="paste-btn" onclick="processPaste()" class="btn-red">Process Text</button>
+        <div id="paste-status" style="display:none;font-size:.82rem;color:var(--muted);"></div>
+      </div>
+    </div>
+
+    <!-- ── Section 3: Manual Entry ── -->
+    <div class="s-card-gold">
+      <div class="s-label">Manual Entry</div>
+      <p style="font-size:.8rem;color:var(--muted);margin-bottom:1rem;">Enter contacts one at a time. Click "Add to Queue" to stage each one, then import all at once below.</p>
+      <div id="manual-forms-container"></div>
+      <button type="button" class="btn-gold" onclick="addManualForm()">+ Add Another Contact</button>
+    </div>
+
+    <!-- ── Section 4: Shared Preview Queue ── -->
+    <div class="s-card" id="preview-section" style="display:none;">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem;">
+        <div class="s-label" style="margin-bottom:0;">
+          Import Queue
+          <span id="queue-badge" class="queue-badge">0</span>
+        </div>
+        <span style="font-size:.75rem;color:var(--muted);">Click any cell to edit &middot; <button type="button" onclick="addBlankRow()" style="background:none;border:none;color:var(--gold);font-size:.75rem;cursor:pointer;font-family:'Oswald',sans-serif;letter-spacing:.06em;text-transform:uppercase;">+ Add Blank Row</button></span>
+      </div>
+      <div class="table-wrap">
+        <table id="preview-table">
+          <thead>
+            <tr>
+              <th>Signup ID</th>
+              <th>Contact Method</th>
+              <th>Contact Status</th>
+              <th>Date Contacted</th>
+              <th>Notes</th>
+              <th style="width:32px;"></th>
+            </tr>
+          </thead>
+          <tbody id="preview-body"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- ── Section 5: Import Options ── -->
+    <div class="s-card">
+      <div class="s-label">Import Options</div>
+      <div class="row-2" style="margin-bottom:.85rem;">
+        <div class="col-half">
+          <label class="form-label">Default Author ID <span style="color:var(--red);">*</span></label>
+          <input type="text" class="form-control" id="default_author_id" placeholder="Your NationBuilder ID" />
+          <div class="form-text">Used for rows without an author column.</div>
+        </div>
+        <div class="col-half">
+          <label class="form-label">Imported by</label>
+          <input type="text" class="form-control" id="imported_by" placeholder="Your name" />
+          <div class="form-text">Stamped on every contact note with timestamp.</div>
+        </div>
+      </div>
+      <div class="row-2">
+        <div class="col-half">
+          <label class="form-label">Default Date Contacted <span style="color:var(--muted);font-weight:400;">(optional)</span></label>
+          <input type="date" class="form-control" id="default_contact_date" />
+          <div class="form-text">Applied to rows that don't already have a date.</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Results section (hidden until import) -->
+    <div id="results-section" style="display:none;margin-top:1.25rem;">
+      <div class="s-card" id="results-card">
+        <div id="results-content"></div>
+      </div>
+      <div style="display:flex;gap:.75rem;margin-top:1rem;">
+        <button class="btn-outline" onclick="resetAll()">Clear &amp; Start Over</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Import footer bar -->
+  <div class="import-footer" id="import-footer">
+    <div class="import-footer-info">
+      <strong id="footer-count">0</strong> contacts in queue
+    </div>
+    <button class="btn-red-lg" id="import-btn" onclick="runImport()" disabled>
+      Import All <span id="import-count">0</span> Contacts
+    </button>
+  </div>
+
+  <!-- Lookup overlay modal -->
+  <div class="lookup-overlay" id="lookup-overlay" onclick="closeLookupOverlay(event)">
+    <div class="lookup-modal">
+      <div class="lookup-modal-title">Find Person</div>
+      <input type="text" class="form-control" id="lookup-search-input" placeholder="Type a name to search…" />
+      <div class="lookup-modal-results" id="lookup-modal-results">
+        <div class="lookup-item" style="color:var(--muted);">Enter a name above to search</div>
+      </div>
+      <button class="btn-outline" onclick="document.getElementById('lookup-overlay').classList.remove('open');">Cancel</button>
+    </div>
+  </div>
+
+  <script>
+    const NATION_SLUG = "{{ default_nation_slug }}";
+    const CONTACT_METHODS = {{ contact_methods | tojson }};
+    const CONTACT_STATUSES = {{ contact_statuses | tojson }};
+    const NB_FIELDS = ['signup_id', 'contact_method', 'contact_status', 'contact_date', 'content'];
+
+    // ── Shared state ──────────────────────────────────────────────────
+    let allRows = [];          // rows ready for import (from files, paste, flushed manual)
+    let manualForms = [];      // [{id, data}] — unflushed manual forms
+    let manualFormCounter = 0;
+    let activeLookupDropdown = null;
+
+    // Current lookup callback: called with the selected person record
+    let _lookupCallback = null;
+    let _lookupTimer = null;
+
+    // ── On load ───────────────────────────────────────────────────────
+    window.addEventListener('DOMContentLoaded', () => {
+      const authorId = "{{ author_nb_id }}";
+      if (authorId) document.getElementById('default_author_id').value = authorId;
+      const userName = "{{ current_user.name }}";
+      if (userName) document.getElementById('imported_by').value = userName;
+      // Start with one blank manual form
+      addManualForm();
+    });
+
+    // ── File upload ───────────────────────────────────────────────────
+    const dropZone = document.getElementById('drop-zone');
+    const fileInput = document.getElementById('file-input');
+    let selectedFiles = [];
+
+    dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('dragover'); });
+    dropZone.addEventListener('dragleave', () => dropZone.classList.remove('dragover'));
+    dropZone.addEventListener('drop', e => {
+      e.preventDefault(); dropZone.classList.remove('dragover');
+      if (e.dataTransfer.files.length) setFiles(Array.from(e.dataTransfer.files));
+    });
+    fileInput.addEventListener('change', () => {
+      if (fileInput.files.length) setFiles(Array.from(fileInput.files));
+    });
+
+    function fileIcon(name) {
+      const ext = name.split('.').pop().toLowerCase();
+      if (['png','jpg','jpeg','gif','bmp','webp'].includes(ext)) return '🖼️';
+      if (['csv','txt'].includes(ext)) return '📄';
+      if (['xlsx','xls'].includes(ext)) return '📊';
+      if (ext === 'pdf') return '📕';
+      if (ext === 'docx') return '📝';
+      return '📂';
+    }
+
+    function setFiles(files) {
+      selectedFiles = files;
+      const listEl = document.getElementById('file-list');
+      const itemsEl = document.getElementById('file-list-items');
+      itemsEl.innerHTML = files.map((f, i) => `
+        <div class="file-row" id="file-row-${i}">
+          <span class="file-icon">${fileIcon(f.name)}</span>
+          <span class="file-name" title="${f.name}">${f.name}</span>
+          <span class="file-status status-waiting" id="file-status-${i}">Waiting</span>
+        </div>`).join('');
+      listEl.style.display = 'block';
+    }
+
+    function setFileStatus(i, cls, text) {
+      const el = document.getElementById(`file-status-${i}`);
+      if (el) { el.className = `file-status ${cls}`; el.textContent = text; }
+    }
+
+    async function startUpload() {
+      if (!selectedFiles.length) return;
+      const status = document.getElementById('upload-status');
+      status.style.display = 'block';
+      status.innerHTML = `<div class="alert-info"><span class="spinner"></span>Processing ${selectedFiles.length} file${selectedFiles.length > 1 ? 's' : ''} in parallel with AI&hellip;</div>`;
+      selectedFiles.forEach((_, i) => setFileStatus(i, 'status-processing', '⟳ Processing…'));
+      const settled = await Promise.all(selectedFiles.map((file, i) => uploadOne(file, i)));
+      const allResults = settled.filter(Boolean);
+      const anyError = settled.some(r => r === null);
+      if (!allResults.length) {
+        status.innerHTML = '<div class="alert-err">All files failed to process.</div>';
+        return;
+      }
+      const newRows = allResults.flatMap(r => r.all_rows || []);
+      addToQueue(newRows);
+      status.innerHTML = anyError
+        ? `<div class="alert-warn">Processed with some errors &mdash; ${newRows.length} rows added to queue.</div>`
+        : `<div class="alert-ok">&#x2713; All files processed &mdash; ${newRows.length} rows added to queue.</div>`;
+    }
+
+    async function uploadOne(file, i) {
+      try {
+        const fd = new FormData();
+        fd.append('file', file);
+        const resp = await fetch('/bulk/upload', { method: 'POST', body: fd });
+        const json = await resp.json();
+        if (!json.success) { setFileStatus(i, 'status-error', `✗ ${json.error}`); return null; }
+        setFileStatus(i, 'status-done', `✓ ${json.total_rows} row${json.total_rows !== 1 ? 's' : ''}`);
+        return json;
+      } catch (err) {
+        setFileStatus(i, 'status-error', `✗ ${err.message}`);
+        return null;
+      }
+    }
+
+    // ── Paste ─────────────────────────────────────────────────────────
+    async function processPaste() {
+      const text = document.getElementById('paste-text').value.trim();
+      const status = document.getElementById('paste-status');
+      if (!text) {
+        status.style.display = 'block';
+        status.innerHTML = '<span style="color:#e57373;">Please paste some text first.</span>';
+        return;
+      }
+      const btn = document.getElementById('paste-btn');
+      btn.disabled = true;
+      btn.textContent = 'Processing…';
+      status.style.display = 'block';
+      status.innerHTML = '<span class="spinner"></span> AI is extracting contact info…';
+      try {
+        const resp = await fetch('/bulk/paste', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ text }),
+        });
+        const json = await resp.json();
+        if (!json.success) throw new Error(json.error || 'Unknown error');
+        addToQueue(json.all_rows);
+        status.innerHTML = `<span style="color:#4ade80;">&#x2713; ${json.all_rows.length} contact${json.all_rows.length !== 1 ? 's' : ''} extracted and added to queue.</span>`;
+        document.getElementById('paste-text').value = '';
+      } catch (err) {
+        status.innerHTML = `<span style="color:#e57373;">Error: ${err.message}</span>`;
+      } finally {
+        btn.disabled = false;
+        btn.textContent = 'Process Text';
+      }
+    }
+
+    // ── Queue management ──────────────────────────────────────────────
+    function addToQueue(rows) {
+      rows.forEach(row => {
+        allRows.push(row);
+        renderPreviewRow(document.getElementById('preview-body'), row, NB_FIELDS);
+      });
+      showPreviewSection();
+      updateQueueCount();
+    }
+
+    function showPreviewSection() {
+      document.getElementById('preview-section').style.display = 'block';
+    }
+
+    function updateQueueCount() {
+      const totalFromManual = countUnflushedManualRows();
+      const total = allRows.length + totalFromManual;
+      document.getElementById('queue-badge').textContent = allRows.length;
+      document.getElementById('footer-count').textContent = total;
+      document.getElementById('import-count').textContent = total;
+      const btn = document.getElementById('import-btn');
+      btn.disabled = (total === 0);
+    }
+
+    function countUnflushedManualRows() {
+      return manualForms.filter(f => {
+        const d = f.data;
+        return (d.signup_id || d._first_name || d._last_name || d._full_name || d.content);
+      }).length;
+    }
+
+    // ── Manual forms ──────────────────────────────────────────────────
+    function addManualForm() {
+      const id = ++manualFormCounter;
+      const formData = {
+        signup_id: '', _first_name: '', _last_name: '', _full_name: '',
+        contact_method: '', contact_status: '', contact_date: '', content: '',
+        author_id: '',
+      };
+      manualForms.push({ id, data: formData });
+
+      const container = document.getElementById('manual-forms-container');
+      const card = document.createElement('div');
+      card.className = 'manual-form-card';
+      card.id = `mfc-${id}`;
+
+      // Name row with find button
+      const nameRow = document.createElement('div');
+      nameRow.style.cssText = 'display:flex;align-items:flex-end;gap:.6rem;margin-bottom:.75rem;';
+
+      const nameWrap = document.createElement('div');
+      nameWrap.style.cssText = 'flex:1;';
+      const nameLbl = document.createElement('label');
+      nameLbl.className = 'form-label';
+      nameLbl.textContent = 'Name';
+      const nameInp = document.createElement('input');
+      nameInp.type = 'text';
+      nameInp.className = 'form-control';
+      nameInp.placeholder = 'First Last';
+      nameInp.addEventListener('input', () => {
+        const parts = nameInp.value.trim().split(/\s+/);
+        formData._first_name = parts[0] || '';
+        formData._last_name = parts.slice(1).join(' ') || '';
+        formData._full_name = nameInp.value.trim();
+        updateQueueCount();
+      });
+      nameWrap.appendChild(nameLbl);
+      nameWrap.appendChild(nameInp);
+
+      const idWrap = document.createElement('div');
+      idWrap.style.cssText = 'width:120px;';
+      const idLbl = document.createElement('label');
+      idLbl.className = 'form-label';
+      idLbl.textContent = 'NB ID';
+      const idInp = document.createElement('input');
+      idInp.type = 'text';
+      idInp.className = 'form-control';
+      idInp.placeholder = 'ID';
+      idInp.addEventListener('input', () => {
+        formData.signup_id = idInp.value.trim();
+        updateQueueCount();
+      });
+      idWrap.appendChild(idLbl);
+      idWrap.appendChild(idInp);
+
+      const findBtn = document.createElement('button');
+      findBtn.type = 'button';
+      findBtn.className = 'btn-gold';
+      findBtn.textContent = 'Find';
+      findBtn.style.cssText = 'flex-shrink:0;margin-bottom:1px;';
+      findBtn.addEventListener('click', () => {
+        openLookupOverlay(formData._first_name, formData._last_name, (person) => {
+          idInp.value = person.nb_id;
+          formData.signup_id = person.nb_id;
+          const fullName = person.full_name || `${person.first_name || ''} ${person.last_name || ''}`.trim();
+          if (!nameInp.value.trim()) {
+            nameInp.value = fullName;
+            formData._full_name = fullName;
+            const parts = fullName.split(/\s+/);
+            formData._first_name = parts[0] || '';
+            formData._last_name = parts.slice(1).join(' ') || '';
+          }
+          findBtn.textContent = '✓ Found';
+          findBtn.style.color = '#4ade80';
+          updateQueueCount();
+        });
+      });
+
+      nameRow.appendChild(nameWrap);
+      nameRow.appendChild(idWrap);
+      nameRow.appendChild(findBtn);
+      card.appendChild(nameRow);
+
+      // Method / Status / Date grid
+      const grid = document.createElement('div');
+      grid.className = 'form-grid';
+      grid.style.cssText = 'display:grid;grid-template-columns:1fr 1fr 1fr;gap:.65rem;margin-bottom:.75rem;';
+
+      // Contact Method
+      const methodDiv = document.createElement('div');
+      const methodLbl = document.createElement('label');
+      methodLbl.className = 'form-label';
+      methodLbl.textContent = 'Contact Method';
+      const methodSel = document.createElement('select');
+      methodSel.className = 'form-control';
+      methodSel.style.cssText = 'padding:.5rem .7rem;font-size:.82rem;';
+      const blankOpt = document.createElement('option');
+      blankOpt.value = ''; blankOpt.textContent = '— select —';
+      methodSel.appendChild(blankOpt);
+      CONTACT_METHODS.forEach(v => {
+        const o = document.createElement('option');
+        o.value = v; o.textContent = v.replace(/_/g, ' ');
+        methodSel.appendChild(o);
+      });
+      methodSel.addEventListener('change', () => { formData.contact_method = methodSel.value; });
+      methodDiv.appendChild(methodLbl); methodDiv.appendChild(methodSel);
+
+      // Contact Status
+      const statusDiv = document.createElement('div');
+      const statusLbl = document.createElement('label');
+      statusLbl.className = 'form-label';
+      statusLbl.textContent = 'Contact Status';
+      const statusSel = document.createElement('select');
+      statusSel.className = 'form-control';
+      statusSel.style.cssText = 'padding:.5rem .7rem;font-size:.82rem;';
+      const blankOpt2 = document.createElement('option');
+      blankOpt2.value = ''; blankOpt2.textContent = '— select —';
+      statusSel.appendChild(blankOpt2);
+      CONTACT_STATUSES.forEach(v => {
+        const o = document.createElement('option');
+        o.value = v; o.textContent = v.replace(/_/g, ' ');
+        statusSel.appendChild(o);
+      });
+      statusSel.addEventListener('change', () => { formData.contact_status = statusSel.value; });
+      statusDiv.appendChild(statusLbl); statusDiv.appendChild(statusSel);
+
+      // Date
+      const dateDiv = document.createElement('div');
+      const dateLbl = document.createElement('label');
+      dateLbl.className = 'form-label';
+      dateLbl.textContent = 'Date Contacted';
+      const dateInp = document.createElement('input');
+      dateInp.type = 'date';
+      dateInp.className = 'form-control';
+      dateInp.addEventListener('change', () => { formData.contact_date = dateInp.value; });
+      dateDiv.appendChild(dateLbl); dateDiv.appendChild(dateInp);
+
+      grid.appendChild(methodDiv);
+      grid.appendChild(statusDiv);
+      grid.appendChild(dateDiv);
+      card.appendChild(grid);
+
+      // Notes textarea
+      const notesLbl = document.createElement('label');
+      notesLbl.className = 'form-label';
+      notesLbl.textContent = 'Notes';
+      const notesTA = document.createElement('textarea');
+      notesTA.className = 'form-control';
+      notesTA.rows = 2;
+      notesTA.placeholder = 'Optional notes about this contact…';
+      notesTA.style.cssText = 'resize:vertical;';
+      notesTA.addEventListener('input', () => { formData.content = notesTA.value; updateQueueCount(); });
+      card.appendChild(notesLbl);
+      card.appendChild(notesTA);
+
+      // Action row
+      const actionRow = document.createElement('div');
+      actionRow.style.cssText = 'display:flex;align-items:center;gap:.65rem;margin-top:.85rem;';
+
+      const addToQueueBtn = document.createElement('button');
+      addToQueueBtn.type = 'button';
+      addToQueueBtn.className = 'btn-gold';
+      addToQueueBtn.textContent = '+ Add to Queue';
+      addToQueueBtn.addEventListener('click', () => {
+        const snapshot = Object.assign({}, formData);
+        if (!snapshot.signup_id && !snapshot._first_name && !snapshot._last_name && !snapshot._full_name && !snapshot.content) {
+          addToQueueBtn.style.borderColor = 'var(--red)';
+          setTimeout(() => { addToQueueBtn.style.borderColor = ''; }, 1500);
+          return;
+        }
+        // Remove from manualForms tracking
+        const idx = manualForms.findIndex(f => f.id === id);
+        if (idx !== -1) manualForms.splice(idx, 1);
+        // Add to shared queue
+        addToQueue([snapshot]);
+        // Remove card
+        card.remove();
+        updateQueueCount();
+      });
+
+      const removeBtn = document.createElement('button');
+      removeBtn.type = 'button';
+      removeBtn.style.cssText = 'background:none;border:none;color:#3a5269;cursor:pointer;font-size:.78rem;font-family:Inter,sans-serif;';
+      removeBtn.textContent = 'Remove';
+      removeBtn.addEventListener('click', () => {
+        const idx = manualForms.findIndex(f => f.id === id);
+        if (idx !== -1) manualForms.splice(idx, 1);
+        card.remove();
+        updateQueueCount();
+      });
+
+      actionRow.appendChild(addToQueueBtn);
+      actionRow.appendChild(removeBtn);
+      card.appendChild(actionRow);
+
+      container.appendChild(card);
+      updateQueueCount();
+    }
+
+    // ── Preview table rendering ───────────────────────────────────────
+    function spellDate(dateStr) {
+      if (!dateStr) return dateStr;
+      const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+      const ordinal = d => {
+        const s = (d >= 11 && d <= 13) ? 'th' : ({1:'st',2:'nd',3:'rd'}[d % 10] || 'th');
+        return d + s;
+      };
+      const iso = dateStr.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/);
+      if (iso) return `${MONTHS[+iso[2]-1]} ${ordinal(+iso[3])}, ${iso[1]}`;
+      const us = dateStr.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+      if (us) return `${MONTHS[+us[1]-1]} ${ordinal(+us[2])}, ${us[3]}`;
+      return dateStr;
+    }
+
+    function renderPreviewRow(body, rowData, fields) {
+      const tr = document.createElement('tr');
+      fields.forEach(field => {
+        const td = document.createElement('td');
+        td.style.position = 'relative';
+        if (field === 'signup_id') {
+          let firstName = rowData._first_name || '';
+          let lastName = rowData._last_name || '';
+          if (!firstName && !lastName && rowData._full_name) {
+            const parts = rowData._full_name.trim().split(/\s+/);
+            firstName = parts[0] || '';
+            lastName = parts.slice(1).join(' ') || '';
+          }
+          const wrapper = document.createElement('div');
+          wrapper.style.cssText = 'display:flex;align-items:center;gap:4px;';
+          const input = document.createElement('input');
+          input.type = 'text'; input.placeholder = 'ID'; input.value = rowData[field] || '';
+          input.addEventListener('change', () => { rowData.signup_id = input.value.trim(); });
+          let dynFirst = firstName, dynLast = lastName;
+          if (!dynFirst && !dynLast) {
+            const nameInput = document.createElement('input');
+            nameInput.type = 'text'; nameInput.placeholder = 'Type name…';
+            nameInput.style.cssText = 'background:transparent;border:none;border-bottom:1px solid rgba(212,168,75,.4);color:var(--gold);font-size:.78rem;font-family:Inter,sans-serif;width:110px;outline:none;padding:.1rem .2rem;';
+            nameInput.addEventListener('input', () => {
+              const parts = nameInput.value.trim().split(/\s+/);
+              dynFirst = parts[0] || ''; dynLast = parts.slice(1).join(' ') || '';
+              rowData._first_name = dynFirst; rowData._last_name = dynLast;
+              rowData._full_name = nameInput.value.trim();
+            });
+            wrapper.appendChild(nameInput);
+          }
+          const btn = document.createElement('button');
+          btn.type = 'button'; btn.className = 'find-btn';
+          btn.textContent = (firstName || lastName) ? `Find ${firstName} ${lastName}`.trim() : 'Find';
+          btn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            openLookup(btn, input, rowData, dynFirst, dynLast);
+          });
+          wrapper.appendChild(input); wrapper.appendChild(btn);
+          td.appendChild(wrapper);
+        } else if (field === 'content') {
+          const ta = document.createElement('textarea');
+          ta.value = rowData[field] || '';
+          ta.rows = 2;
+          ta.style.cssText = 'background:transparent;border:none;color:var(--text);font-size:.8rem;font-family:Inter,sans-serif;padding:.2rem .3rem;width:100%;outline:none;resize:vertical;min-height:2.5rem;';
+          ta.addEventListener('focus', () => { ta.style.background='rgba(197,48,48,.1)'; ta.style.outline='1px solid var(--red)'; ta.style.borderRadius='4px'; });
+          ta.addEventListener('blur', () => { ta.style.background='transparent'; ta.style.outline='none'; rowData[field] = ta.value.trim(); });
+          td.appendChild(ta);
+        } else if (field === 'contact_method' || field === 'contact_status') {
+          const options = field === 'contact_method' ? CONTACT_METHODS : CONTACT_STATUSES;
+          const sel = document.createElement('select');
+          sel.className = 'nb-select';
+          const blank = document.createElement('option');
+          blank.value = ''; blank.textContent = '— select —';
+          sel.appendChild(blank);
+          options.forEach(v => {
+            const opt = document.createElement('option');
+            opt.value = v; opt.textContent = v.replace(/_/g, ' ');
+            if (v === (rowData[field] || '')) opt.selected = true;
+            sel.appendChild(opt);
+          });
+          sel.addEventListener('change', () => { rowData[field] = sel.value; });
+          td.appendChild(sel);
+        } else if (field === 'contact_date') {
+          const input = document.createElement('input');
+          input.type = 'text'; input.value = spellDate(rowData[field] || '');
+          input.addEventListener('change', () => { rowData[field] = input.value.trim(); });
+          td.appendChild(input);
+        } else {
+          const input = document.createElement('input');
+          input.type = 'text'; input.value = rowData[field] || '';
+          input.addEventListener('change', () => { rowData[field] = input.value.trim(); });
+          td.appendChild(input);
+        }
+        tr.appendChild(td);
+      });
+
+      const delTd = document.createElement('td');
+      const delBtn = document.createElement('button');
+      delBtn.type = 'button'; delBtn.className = 'del-btn'; delBtn.title = 'Remove row';
+      delBtn.innerHTML = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>';
+      delBtn.addEventListener('click', () => {
+        const idx = allRows.indexOf(rowData);
+        if (idx !== -1) allRows.splice(idx, 1);
+        tr.remove();
+        updateQueueCount();
+        if (allRows.length === 0) {
+          document.getElementById('preview-section').style.display = 'none';
+        }
+      });
+      delTd.appendChild(delBtn);
+      tr.appendChild(delTd);
+      body.appendChild(tr);
+    }
+
+    function addBlankRow() {
+      const rowData = { signup_id: '', contact_method: '', contact_status: '', contact_date: '', content: '' };
+      allRows.push(rowData);
+      renderPreviewRow(document.getElementById('preview-body'), rowData, NB_FIELDS);
+      showPreviewSection();
+      updateQueueCount();
+      const rows = document.getElementById('preview-body').querySelectorAll('tr');
+      if (rows.length) rows[rows.length - 1].scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
+
+    // ── Lookup dropdown (inline table cell) ──────────────────────────
+    document.addEventListener('click', () => closeActiveLookup());
+
+    function closeActiveLookup() {
+      if (activeLookupDropdown) { activeLookupDropdown.remove(); activeLookupDropdown = null; }
+    }
+
+    async function openLookup(btn, idInput, rowData, firstName, lastName) {
+      closeActiveLookup();
+      const dropdown = document.createElement('div');
+      dropdown.className = 'lookup-dropdown';
+      dropdown.innerHTML = `<div class="lookup-item" style="color:#5a7a96;">Searching…</div>`;
+      btn.closest('td').appendChild(dropdown);
+      activeLookupDropdown = dropdown;
+      try {
+        const url = `/search-by-name?first=${encodeURIComponent(firstName)}&last=${encodeURIComponent(lastName)}&nation_slug=${encodeURIComponent(NATION_SLUG)}`;
+        const resp = await fetch(url);
+        const json = await resp.json();
+        dropdown.innerHTML = '';
+        if (!json.success || !json.records.length) {
+          dropdown.innerHTML = `<div class="lookup-item" style="color:#5a7a96;">No matches for "${firstName} ${lastName}"</div>`;
+          return;
+        }
+        if (json.fallback) {
+          const note = document.createElement('div');
+          note.className = 'lookup-item';
+          note.style.cssText = 'color:#fbbf24;font-size:.76rem;';
+          note.textContent = `No exact match for "${firstName}" — showing all ${lastName}s:`;
+          dropdown.appendChild(note);
+        }
+        json.records.forEach(p => {
+          const addr = [p.address1, p.city, p.state, p.zip].filter(Boolean).join(', ');
+          const suffix = p.suffix ? ` ${p.suffix}` : '';
+          const item = document.createElement('div');
+          item.className = 'lookup-item';
+          item.innerHTML = `
+            <div class="li-name">${p.full_name || `${p.first_name} ${p.last_name}`}${suffix}</div>
+            ${addr ? `<div class="li-addr">${addr}</div>` : ''}
+            <div class="li-id">ID: ${p.nb_id}</div>`;
+          item.addEventListener('click', (e) => {
+            e.stopPropagation();
+            idInput.value = p.nb_id;
+            rowData.signup_id = p.nb_id;
+            btn.textContent = '✓';
+            btn.className = 'find-btn-ok';
+            closeActiveLookup();
+          });
+          dropdown.appendChild(item);
+        });
+      } catch (err) {
+        dropdown.innerHTML = `<div class="lookup-item" style="color:#f87171;">Error: ${err.message}</div>`;
+      }
+    }
+
+    // ── Lookup overlay modal (for manual forms) ───────────────────────
+    function openLookupOverlay(firstName, lastName, callback) {
+      _lookupCallback = callback;
+      const overlay = document.getElementById('lookup-overlay');
+      const searchInput = document.getElementById('lookup-search-input');
+      const resultsEl = document.getElementById('lookup-modal-results');
+      overlay.classList.add('open');
+      searchInput.value = [firstName, lastName].filter(Boolean).join(' ');
+      resultsEl.innerHTML = '<div class="lookup-item" style="color:var(--muted);">Enter a name above to search</div>';
+      searchInput.focus();
+      if (searchInput.value.trim().length >= 2) {
+        runLookupOverlaySearch(searchInput.value.trim());
+      }
+    }
+
+    function closeLookupOverlay(e) {
+      if (e && e.target !== document.getElementById('lookup-overlay')) return;
+      document.getElementById('lookup-overlay').classList.remove('open');
+    }
+
+    document.getElementById('lookup-search-input').addEventListener('input', () => {
+      clearTimeout(_lookupTimer);
+      const val = document.getElementById('lookup-search-input').value.trim();
+      if (val.length < 2) return;
+      _lookupTimer = setTimeout(() => runLookupOverlaySearch(val), 300);
+    });
+
+    async function runLookupOverlaySearch(nameStr) {
+      const resultsEl = document.getElementById('lookup-modal-results');
+      resultsEl.innerHTML = '<div class="lookup-item" style="color:var(--muted);"><span class="spinner"></span> Searching…</div>';
+      try {
+        const parts = nameStr.trim().split(/\s+/);
+        const first = parts[0] || '';
+        const last = parts.slice(1).join(' ') || '';
+        let url;
+        if (last) {
+          url = `/search-by-name?first=${encodeURIComponent(first)}&last=${encodeURIComponent(last)}&nation_slug=${encodeURIComponent(NATION_SLUG)}`;
+        } else {
+          url = `/search-signup?name=${encodeURIComponent(nameStr)}&nation_slug=${encodeURIComponent(NATION_SLUG)}`;
+        }
+        const resp = await fetch(url);
+        const json = await resp.json();
+        resultsEl.innerHTML = '';
+        if (!json.success || !json.records.length) {
+          resultsEl.innerHTML = `<div class="lookup-item" style="color:var(--muted);">No matches found for "${nameStr}"</div>`;
+          return;
+        }
+        json.records.forEach(p => {
+          const addr = [p.address1, p.city, p.state, p.zip].filter(Boolean).join(', ');
+          const suffix = p.suffix ? ` ${p.suffix}` : '';
+          const item = document.createElement('div');
+          item.className = 'lookup-item';
+          item.innerHTML = `
+            <div class="li-name">${p.full_name || `${p.first_name || ''} ${p.last_name || ''}`}${suffix}</div>
+            ${addr ? `<div class="li-addr">${addr}</div>` : ''}
+            <div class="li-id">ID: ${p.nb_id}</div>`;
+          item.addEventListener('click', () => {
+            document.getElementById('lookup-overlay').classList.remove('open');
+            if (_lookupCallback) { _lookupCallback(p); _lookupCallback = null; }
+          });
+          resultsEl.appendChild(item);
+        });
+      } catch (err) {
+        resultsEl.innerHTML = `<div class="lookup-item" style="color:#f87171;">Error: ${err.message}</div>`;
+      }
+    }
+
+    // ── Import ────────────────────────────────────────────────────────
+    let _lastErrors = [];
+
+    async function runImport() {
+      const authorId = document.getElementById('default_author_id').value.trim();
+      if (!authorId) { alert('Please enter a default Author ID.'); return; }
+      const importedBy = document.getElementById('imported_by').value.trim();
+      const defaultDate = document.getElementById('default_contact_date').value.trim();
+
+      // Collect allRows + any unflushed manual forms with data
+      const unflushedRows = manualForms
+        .filter(f => {
+          const d = f.data;
+          return (d.signup_id || d._first_name || d._last_name || d._full_name || d.content);
+        })
+        .map(f => Object.assign({}, f.data));
+
+      const rows = [...allRows, ...unflushedRows].map(r => ({
+        ...r,
+        author_id: r.author_id || authorId,
+        contact_date: r.contact_date || defaultDate || '',
+      }));
+
+      if (!rows.length) { alert('No contacts to import.'); return; }
+
+      const btn = document.getElementById('import-btn');
+      btn.disabled = true;
+      btn.innerHTML = '<span class="spinner"></span>Importing…';
+
+      try {
+        const resp = await fetch('/bulk/import', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ nation_slug: NATION_SLUG, rows, imported_by: importedBy }),
+        });
+        const json = await resp.json();
+        _lastErrors = json.results.errors || [];
+        showResults(json.results, rows.length);
+      } catch (err) {
+        alert(`Import failed: ${err.message}`);
+        btn.disabled = false;
+        btn.innerHTML = `Import All <span id="import-count">${allRows.length}</span> Contacts`;
+      }
+    }
+
+    function friendlyError(e) {
+      const detail = e.detail;
+      if (detail && typeof detail === 'object') {
+        const errs = detail.errors || detail.error || detail.message;
+        if (Array.isArray(errs)) {
+          return errs.map(err => {
+            const field = err.source?.pointer?.split('/').pop() || err.title || '';
+            const msg = err.detail || err.title || JSON.stringify(err);
+            if (field === 'signup_id' || msg.toLowerCase().includes('signup'))
+              return `Missing or invalid person ID — make sure the NationBuilder ID is correct.`;
+            if (field === 'contact_method' || msg.toLowerCase().includes('method'))
+              return `Invalid contact method — must be one of: phone_call, email, door_knock, text, etc.`;
+            if (field === 'contact_status' || msg.toLowerCase().includes('status'))
+              return `Invalid contact status — must be one of: answered, no_answer, meaningful_interaction, etc.`;
+            return msg;
+          }).join(' ');
+        }
+        if (typeof errs === 'string') return errs;
+      }
+      const msg = e.error || '';
+      const sent = e.sent ? ` (sent: ${Object.entries(e.sent).map(([k,v])=>`${k}="${v}"`).join(', ')})` : '';
+      if (msg.includes('400')) return `Bad request — check that the person ID exists in NationBuilder and all required fields are valid.${sent}`;
+      if (msg.includes('401') || msg.includes('403')) return `Authentication error — the nation token may have expired.`;
+      if (msg.includes('404')) return `Person not found — the NationBuilder ID may be wrong or not in this nation.${sent}`;
+      if (msg.includes('422')) return `Invalid data — one or more fields have an unrecognized value.${sent}`;
+      return (msg || 'Unknown error') + sent;
+    }
+
+    function showResults(results, total) {
+      const section = document.getElementById('results-section');
+      const content = document.getElementById('results-content');
+      let html = `
+        <div class="s-label" style="margin-bottom:1rem;">Import Complete</div>
+        <div class="result-stat">
+          <div class="stat-ok"><span>${results.success}</span><div class="stat-label">Imported</div></div>
+          <div class="stat-err"><span>${results.failed}</span><div class="stat-label">Failed</div></div>
+        </div>`;
+      if (results.errors && results.errors.length) {
+        html += `<div class="s-label" style="margin:.75rem 0 .5rem;">Failed Rows</div>
+          <div style="max-height:220px;overflow-y:auto;margin-bottom:1rem;">
+          ${results.errors.map(e => `
+            <div class="error-row">
+              <strong>Row ${e.row}:</strong> ${friendlyError(e)}
+            </div>`).join('')}
+          </div>`;
+      }
+      content.innerHTML = html;
+      section.style.display = 'block';
+      section.scrollIntoView({ behavior: 'smooth', block: 'start' });
+
+      // Update footer button
+      const btn = document.getElementById('import-btn');
+      btn.disabled = false;
+      btn.innerHTML = `Import All <span id="import-count">${total}</span> Contacts`;
+    }
+
+    function resetAll() {
+      allRows = [];
+      manualForms = [];
+      manualFormCounter = 0;
+      document.getElementById('preview-body').innerHTML = '';
+      document.getElementById('preview-section').style.display = 'none';
+      document.getElementById('results-section').style.display = 'none';
+      document.getElementById('upload-status').style.display = 'none';
+      document.getElementById('upload-status').innerHTML = '';
+      document.getElementById('paste-status').style.display = 'none';
+      document.getElementById('paste-text').value = '';
+      document.getElementById('file-list').style.display = 'none';
+      document.getElementById('file-list-items').innerHTML = '';
+      document.getElementById('file-input').value = '';
+      document.getElementById('manual-forms-container').innerHTML = '';
+      selectedFiles = [];
+      addManualForm();
+      updateQueueCount();
+      window.scrollTo(0, 0);
+    }
+  </script>
+</body>
+</html>
