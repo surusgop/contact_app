@@ -941,13 +941,23 @@ def search_signup():
 OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY", "")
 
 
-def parse_image_with_ai(raw: bytes, filename: str) -> pd.DataFrame:
-    mime_map = {
-        "jpg": "image/jpeg", "jpeg": "image/jpeg", "png": "image/png",
-        "gif": "image/gif", "bmp": "image/bmp", "webp": "image/webp", "tiff": "image/tiff",
-    }
-    ext = filename.lower().rsplit(".", 1)[-1]
-    mime = mime_map.get(ext, "image/png")
+def parse_image_with_ai(raw: bytes, _filename: str = "") -> pd.DataFrame:
+    from PIL import Image
+    import io
+    # Resize large images before sending to keep payload under ~1.5 MB
+    try:
+        img = Image.open(io.BytesIO(raw))
+        img = img.convert("RGB")
+        max_side = 1600
+        if max(img.size) > max_side:
+            ratio = max_side / max(img.size)
+            img = img.resize((int(img.width * ratio), int(img.height * ratio)), Image.LANCZOS)
+        buf = io.BytesIO()
+        img.save(buf, format="JPEG", quality=85)
+        raw = buf.getvalue()
+    except Exception:
+        pass  # if PIL fails, send the original
+    mime = "image/jpeg"
     b64 = base64.b64encode(raw).decode("utf-8")
     resp = requests.post(
         "https://openrouter.ai/api/v1/chat/completions",
