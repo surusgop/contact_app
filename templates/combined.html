@@ -303,7 +303,7 @@
               <th>Signup ID</th>
               <th>Contact Method</th>
               <th>Contact Status</th>
-              <th>Date Contacted</th>
+              <th>Date Contacted <span style="font-weight:400;color:var(--muted);">(added to notes)</span></th>
               <th>Notes</th>
               <th style="width:32px;"></th>
             </tr>
@@ -692,7 +692,7 @@
       const dateDiv = document.createElement('div');
       const dateLbl = document.createElement('label');
       dateLbl.className = 'form-label';
-      dateLbl.textContent = 'Date Contacted';
+      dateLbl.innerHTML = 'Date Contacted <span style="color:var(--muted);font-weight:400;">(added to notes)</span>';
       const dateInp = document.createElement('input');
       dateInp.type = 'date';
       dateInp.className = 'form-control';
