@@ -9,185 +9,137 @@
   <link href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet" />
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-
-    :root {
-      --bg: #0d1823;
-      --surface: #162032;
-      --surface-2: #1e2d40;
-      --gold: #d4a84b;
-      --red: #c53030;
-      --red-dark: #a82828;
-      --text: #dde4ee;
-      --muted: #5a7a96;
-      --border: #253649;
-      --input-bg: #0f1f2e;
-    }
-
     body {
       font-family: 'Inter', sans-serif;
-      background: var(--bg);
-      color: var(--text);
+      background: #f8fafc;
+      color: #111827;
       min-height: 100vh;
       display: flex; flex-direction: column;
       align-items: center; justify-content: center;
       padding: 1.5rem;
     }
-
     .page-header {
-      width: 100%; max-width: 540px;
+      width: 100%; max-width: 560px;
       display: flex; align-items: center;
       padding-bottom: .85rem;
-      border-bottom: 2px solid var(--red);
+      border-bottom: 3px solid #dc2626;
       margin-bottom: 2.5rem;
     }
-    .brand-name {
-      font-family: 'Oswald', sans-serif;
-      font-size: 1.2rem; font-weight: 700;
-      color: var(--gold); letter-spacing: .12em; text-transform: uppercase;
-    }
-    .brand-sep { color: var(--red); margin: 0 .6rem; }
-    .brand-sub {
-      font-family: 'Oswald', sans-serif;
-      font-size: .85rem; color: var(--muted);
-      letter-spacing: .1em; text-transform: uppercase;
-    }
-
+    .brand-name { font-family: 'Oswald', sans-serif; font-size: 1.2rem; font-weight: 700; color: #dc2626; letter-spacing: .12em; text-transform: uppercase; }
+    .brand-sep { color: #9ca3af; margin: 0 .6rem; }
+    .brand-sub { font-family: 'Oswald', sans-serif; font-size: .85rem; color: #6b7280; letter-spacing: .1em; text-transform: uppercase; }
     .setup-card {
-      background: var(--surface);
-      border: 1px solid var(--border);
-      border-radius: 12px;
+      background: #ffffff;
+      border: 1px solid #e5e7eb;
+      border-radius: 14px;
       padding: 2rem 2rem 1.75rem;
-      width: 100%; max-width: 540px;
-      box-shadow: 0 8px 32px rgba(0,0,0,.4);
+      width: 100%; max-width: 560px;
+      box-shadow: 0 4px 16px rgba(0,0,0,.08);
     }
-
     .user-row {
       display: flex; align-items: center; gap: .85rem;
       margin-bottom: 1.5rem;
       padding-bottom: 1.25rem;
-      border-bottom: 1px solid var(--border);
+      border-bottom: 1px solid #e5e7eb;
     }
-    .user-avatar {
-      width: 44px; height: 44px; border-radius: 50%;
-      border: 2px solid var(--border);
-    }
-    .user-welcome { font-size: .72rem; color: var(--muted); text-transform: uppercase; letter-spacing: .08em; }
-    .user-name { font-family: 'Oswald', sans-serif; font-size: 1.1rem; color: var(--text); letter-spacing: .04em; }
-
+    .user-avatar { width: 44px; height: 44px; border-radius: 50%; border: 2px solid #e5e7eb; }
+    .user-welcome { font-size: .72rem; color: #6b7280; text-transform: uppercase; letter-spacing: .08em; }
+    .user-name { font-family: 'Oswald', sans-serif; font-size: 1.1rem; color: #111827; letter-spacing: .04em; }
     .section-label {
       font-family: 'Oswald', sans-serif;
       font-size: .7rem; letter-spacing: .15em;
-      text-transform: uppercase; color: var(--gold);
+      text-transform: uppercase; color: #dc2626;
       margin-bottom: .75rem;
     }
-
-    .form-label {
-      font-size: .78rem; font-weight: 500;
-      color: var(--muted); margin-bottom: .35rem; display: block;
+    .nation-btn {
+      width: 100%;
+      background: #ffffff;
+      border: 1.5px solid #e5e7eb;
+      border-radius: 10px;
+      padding: .85rem 1.1rem;
+      cursor: pointer;
+      text-align: left;
+      transition: border-color .15s, box-shadow .15s;
+      font-family: 'Inter', sans-serif;
+      margin-bottom: .5rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
     }
-    .form-label span { color: var(--red); }
-
+    .nation-btn:hover { border-color: #2563eb; box-shadow: 0 0 0 3px rgba(37,99,235,.1); }
+    .nation-btn.selected { border: 2.5px solid #111827; box-shadow: 0 0 0 3px rgba(17,24,39,.1); }
+    .nation-btn-name { font-size: .95rem; font-weight: 600; color: #111827; }
+    .nation-btn-slug { font-size: .78rem; color: #6b7280; margin-top: .15rem; }
+    .nation-btn-arrow { color: #9ca3af; font-size: 1rem; }
+    /* Form elements (for new-user flow) */
+    .form-label { font-size: .78rem; font-weight: 500; color: #6b7280; margin-bottom: .35rem; display: block; }
+    .form-label span { color: #dc2626; }
     .form-control {
       width: 100%;
-      background: var(--input-bg);
-      border: 1px solid var(--border);
+      background: #ffffff;
+      border: 1px solid #e5e7eb;
       border-radius: 8px;
-      color: var(--text);
+      color: #111827;
       font-size: .88rem; font-family: 'Inter', sans-serif;
       padding: .6rem .9rem;
       transition: border-color .15s, box-shadow .15s;
       outline: none;
     }
-    .form-control:focus {
-      border-color: var(--red);
-      box-shadow: 0 0 0 3px rgba(197,48,48,.2);
-    }
-    .form-control::placeholder { color: #3a5269; }
-
+    .form-control:focus { border-color: #2563eb; box-shadow: 0 0 0 3px rgba(37,99,235,.12); }
+    .form-control::placeholder { color: #c4cdd8; }
     .dropdown-box {
-      background: var(--surface-2);
-      border: 1px solid var(--border);
+      background: #ffffff;
+      border: 1px solid #e5e7eb;
       border-radius: 10px;
-      box-shadow: 0 8px 32px rgba(0,0,0,.5);
+      box-shadow: 0 8px 24px rgba(0,0,0,.1);
       overflow: hidden;
       position: absolute;
       width: 100%; top: calc(100% + 4px);
       z-index: 300;
     }
-    .dropdown-item {
-      padding: .6rem 1rem;
-      border-bottom: 1px solid var(--border);
-      cursor: pointer; font-size: .87rem;
-      transition: background .1s;
-    }
-    .dropdown-item:hover { background: #253649; }
+    .dropdown-item { padding: .6rem 1rem; border-bottom: 1px solid #e5e7eb; cursor: pointer; font-size: .87rem; transition: background .1s; }
+    .dropdown-item:hover { background: #eff6ff; }
     .dropdown-item:last-child { border-bottom: none; }
-    .dropdown-item .item-main { font-weight: 500; color: var(--text); }
-    .dropdown-item .item-sub { font-size: .75rem; color: var(--muted); margin-top: .1rem; }
-
+    .dropdown-item .item-main { font-weight: 500; color: #111827; }
+    .dropdown-item .item-sub { font-size: .75rem; color: #6b7280; margin-top: .1rem; }
     .slug-badge {
       display: inline-flex; align-items: center; gap: .35rem;
-      background: rgba(212,168,75,.12);
-      border: 1px solid rgba(212,168,75,.35);
-      color: var(--gold); border-radius: 6px;
-      padding: .22rem .65rem; font-size: .76rem; font-weight: 500;
-      margin-top: .45rem;
+      background: #eff6ff; border: 1px solid #bfdbfe; color: #2563eb;
+      border-radius: 6px; padding: .22rem .65rem; font-size: .76rem; font-weight: 500; margin-top: .45rem;
     }
-
     .lookup-box { min-height: 44px; margin: .75rem 0; }
-    .lookup-loading { display: flex; align-items: center; gap: .5rem; font-size: .83rem; color: var(--muted); }
+    .lookup-loading { display: flex; align-items: center; gap: .5rem; font-size: .83rem; color: #6b7280; }
     .spin { animation: spin 1s linear infinite; }
     @keyframes spin { to { transform: rotate(360deg); } }
-
-    .alert-ok {
-      background: rgba(22,163,74,.12); border: 1px solid rgba(22,163,74,.3);
-      border-radius: 8px; padding: .6rem 1rem; font-size: .83rem; color: #4ade80;
-    }
-    .alert-warn {
-      background: rgba(217,119,6,.12); border: 1px solid rgba(217,119,6,.3);
-      border-radius: 8px; padding: .6rem 1rem; font-size: .83rem; color: #fbbf24;
-    }
-    .form-hint { font-size: .74rem; color: var(--muted); margin-top: .3rem; }
-    .form-hint .ok { color: #4ade80; }
-
+    .alert-ok { background: #f0fdf4; border: 1px solid #86efac; border-radius: 8px; padding: .6rem 1rem; font-size: .83rem; color: #166534; }
+    .alert-warn { background: #fffbeb; border: 1px solid #fcd34d; border-radius: 8px; padding: .6rem 1rem; font-size: .83rem; color: #92400e; }
+    .form-hint { font-size: .74rem; color: #6b7280; margin-top: .3rem; }
+    .form-hint .ok { color: #16a34a; }
     .btn-continue {
       width: 100%; padding: .75rem;
-      background: var(--red); border: none; border-radius: 8px;
+      background: #dc2626; border: none; border-radius: 8px;
       color: #fff;
       font-family: 'Oswald', sans-serif;
       font-size: 1rem; font-weight: 600;
       letter-spacing: .1em; text-transform: uppercase;
       cursor: pointer;
       transition: background .15s, transform .1s;
-      box-shadow: 0 4px 16px rgba(197,48,48,.35);
+      box-shadow: 0 2px 8px rgba(220,38,38,.25);
       margin-top: .25rem;
     }
-    .btn-continue:hover { background: var(--red-dark); }
+    .btn-continue:hover { background: #b91c1c; }
     .btn-continue:active { transform: translateY(1px); }
     .btn-continue:disabled { opacity: .4; cursor: not-allowed; transform: none; }
-
-    .signout {
-      display: block; text-align: center;
-      margin-top: 1rem; font-size: .78rem; color: var(--muted);
-      text-decoration: none; transition: color .15s;
-    }
-    .signout:hover { color: var(--text); }
-
+    .saving-overlay { text-align: center; padding: .75rem; font-size: .85rem; color: #6b7280; }
+    .spinner { display: inline-block; width: 14px; height: 14px; border: 2px solid rgba(0,0,0,.1); border-top-color: #2563eb; border-radius: 50%; animation: spin 0.7s linear infinite; margin-right: 6px; vertical-align: middle; }
+    .signout { display: block; text-align: center; margin-top: 1rem; font-size: .78rem; color: #6b7280; text-decoration: none; transition: color .15s; }
+    .signout:hover { color: #dc2626; }
     .mb-3 { margin-bottom: 1rem; }
     .mb-4 { margin-bottom: 1.25rem; }
     .position-relative { position: relative; }
-
-    .nation-quick-btn {
-      background: var(--surface-2); border: 1px solid var(--border);
-      border-radius: 8px; padding: .65rem 1rem; cursor: pointer;
-      text-align: left; transition: border-color .15s, background .15s;
-      font-family: 'Inter', sans-serif;
-    }
-    .nation-quick-btn:hover { border-color: var(--gold); background: rgba(212,168,75,.08); }
   </style>
 </head>
 <body>
-
   <div class="page-header">
     <div class="brand-name">Surus</div>
     <div class="brand-sep">·</div>
@@ -206,32 +158,34 @@
     </div>
 
     {% if user_nations %}
-    <div class="section-label" style="margin-bottom:.6rem;">Your Nations</div>
-    <p style="font-size:.82rem;color:var(--muted);margin-bottom:.75rem;">Select a nation you've used before, or search for a new one below.</p>
-    <div style="display:flex;flex-direction:column;gap:.5rem;margin-bottom:1.5rem;">
+    <!-- Returning user: just show nation buttons, auto-save on click -->
+    <div class="section-label">Choose Your Nation</div>
+    <p style="font-size:.84rem;color:#6b7280;margin-bottom:1.1rem;line-height:1.55;">Select which nation you're logging contacts for today.</p>
+    <div id="nation-list">
       {% for nation in user_nations %}
-      <button type="button" class="nation-quick-btn"
+      <button type="button" class="nation-btn"
               data-slug="{{ nation.slug }}"
               data-name="{{ nation.name }}"
               data-nbid="{{ nation.author_nb_id }}"
-              onclick="quickSelectNation(this)">
-        <span style="font-weight:600;color:var(--text);">{{ nation.name }}</span>
-        <span style="font-size:.75rem;color:var(--muted);margin-left:.5rem;">{{ nation.slug }}</span>
+              onclick="selectNation(this)">
+        <div>
+          <div class="nation-btn-name">{{ nation.name }}</div>
+          <div class="nation-btn-slug">{{ nation.slug }}</div>
+        </div>
+        <span class="nation-btn-arrow">→</span>
       </button>
       {% endfor %}
     </div>
-    <div style="display:flex;align-items:center;gap:.75rem;margin-bottom:1.25rem;">
-      <div style="flex:1;height:1px;background:var(--border);"></div>
-      <span style="font-size:.75rem;color:var(--muted);">or search for a different nation</span>
-      <div style="flex:1;height:1px;background:var(--border);"></div>
+    <div id="saving-status" style="display:none;" class="saving-overlay">
+      <span class="spinner"></span> Saving…
     </div>
-    {% endif %}
 
+    {% else %}
+    <!-- New user: show search + NB ID flow -->
     <div class="section-label">Select Your Nation</div>
-    <p style="font-size:.84rem;color:var(--muted);margin-bottom:1.25rem;line-height:1.55;">
+    <p style="font-size:.84rem;color:#6b7280;margin-bottom:1.25rem;line-height:1.55;">
       Choose your NationBuilder nation below. We'll look up your ID automatically.
     </p>
-
     <div class="mb-3">
       <label class="form-label">Nation <span>*</span></label>
       <div class="position-relative">
@@ -249,22 +203,43 @@
         </div>
       </div>
     </div>
-
     <div class="lookup-box" id="lookup-status"></div>
-
     <div class="mb-4" id="nb-id-row" style="display:none;">
       <label class="form-label">Your NationBuilder ID</label>
       <input type="text" class="form-control" id="nb_id_input" placeholder="Enter your NB ID" />
       <div class="form-hint" id="nb-id-help"></div>
     </div>
-
     <button class="btn-continue" id="continue-btn" disabled onclick="saveAndContinue()">
       Continue →
     </button>
+    {% endif %}
+
     <a href="/logout" class="signout">Sign out</a>
   </div>
 
   <script>
+    {% if user_nations %}
+    async function selectNation(btn) {
+      document.querySelectorAll('.nation-btn').forEach(b => b.classList.remove('selected'));
+      btn.classList.add('selected');
+      btn.querySelector('.nation-btn-arrow').textContent = '✓';
+      document.getElementById('saving-status').style.display = 'block';
+      const slug = btn.dataset.slug;
+      const name = btn.dataset.name;
+      const nbId = btn.dataset.nbid;
+      try {
+        await fetch('/setup', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ nation_slug: slug, nation_name: name, author_nb_id: nbId }),
+        });
+        window.location.href = '/';
+      } catch (err) {
+        document.getElementById('saving-status').innerHTML = '<span style="color:#dc2626;">Error saving — please try again.</span>';
+      }
+    }
+
+    {% else %}
     const nationSearch = document.getElementById('nation_search');
     const nationResults = document.getElementById('nation_results');
     const nationSlugInput = document.getElementById('nation_slug');
@@ -290,7 +265,7 @@
       nbIdRow.style.display = 'block';
       if (savedNbId) {
         nbIdInput.value = savedNbId;
-        nbIdHelp.innerHTML = `<span class="ok">&#x2713; Previously saved</span> &mdash; edit to change`;
+        nbIdHelp.innerHTML = '<span class="ok">✓ Previously saved</span> — edit to change';
         continueBtn.disabled = false;
       }
     }
@@ -313,14 +288,14 @@
     });
 
     async function runNationSearch(term) {
-      nationResults.innerHTML = '<div class="dropdown-item" style="color:#5a7a96;">Searching…</div>';
+      nationResults.innerHTML = '<div class="dropdown-item" style="color:#6b7280;">Searching…</div>';
       nationResults.style.display = 'block';
       try {
         const resp = await fetch(`/search-nation?term=${encodeURIComponent(term)}`);
         const json = await resp.json();
         nationResults.innerHTML = '';
         if (!json.success || !json.records.length) {
-          nationResults.innerHTML = '<div class="dropdown-item" style="color:#5a7a96;">No matches found</div>';
+          nationResults.innerHTML = '<div class="dropdown-item" style="color:#6b7280;">No matches found</div>';
           return;
         }
         json.records.forEach(r => {
@@ -340,7 +315,7 @@
           nationResults.appendChild(d);
         });
       } catch (err) {
-        nationResults.innerHTML = `<div class="dropdown-item" style="color:#f87171;">Error: ${err.message}</div>`;
+        nationResults.innerHTML = `<div class="dropdown-item" style="color:#dc2626;">Error: ${err.message}</div>`;
       }
     }
 
@@ -359,18 +334,18 @@
         nbIdRow.style.display = 'block';
         if (json.nb_id) {
           nbIdInput.value = json.nb_id;
-          lookupStatus.innerHTML = `<div class="alert-ok">&#x2713; Found: <strong>${json.name || 'your account'}</strong> &mdash; ID: <strong>${json.nb_id}</strong></div>`;
-          nbIdHelp.innerHTML = `Auto-filled from your account &mdash; edit if needed`;
+          lookupStatus.innerHTML = `<div class="alert-ok">✓ Found: <strong>${json.name || 'your account'}</strong> — ID: <strong>${json.nb_id}</strong></div>`;
+          nbIdHelp.innerHTML = 'Auto-filled from your account — edit if needed';
           continueBtn.disabled = false;
         } else {
           nbIdInput.value = '';
-          lookupStatus.innerHTML = `<div class="alert-warn">Account not found in this nation &mdash; enter your NB ID manually.</div>`;
+          lookupStatus.innerHTML = `<div class="alert-warn">Account not found in this nation — enter your NB ID manually.</div>`;
           nbIdInput.focus();
         }
       } catch {
         nbIdRow.style.display = 'block';
         nbIdInput.value = '';
-        lookupStatus.innerHTML = `<div class="alert-warn">Couldn't auto-lookup ID &mdash; enter it manually.</div>`;
+        lookupStatus.innerHTML = `<div class="alert-warn">Couldn't auto-lookup ID — enter it manually.</div>`;
       }
     }
 
@@ -397,23 +372,7 @@
         alert('Error saving: ' + err.message);
       }
     }
-
-    function quickSelectNation(btn) {
-      const slug = btn.dataset.slug;
-      const name = btn.dataset.name;
-      const nbId = btn.dataset.nbid;
-      nationSlugInput.value = slug;
-      nationSearch.value = name;
-      selectedNationName = name;
-      nationSlugDisplay.textContent = slug;
-      nationSelected.style.display = 'block';
-      nbIdRow.style.display = 'block';
-      if (nbId) {
-        nbIdInput.value = nbId;
-        nbIdHelp.innerHTML = '<span class="ok">&#x2713; Auto-filled from previous session</span>';
-        continueBtn.disabled = false;
-      }
-    }
+    {% endif %}
   </script>
 </body>
 </html>
