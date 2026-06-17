@@ -2,6 +2,11 @@ import os
 import io
 import json
 import base64
+try:
+    from pillow_heif import register_heif_opener
+    register_heif_opener()
+except ImportError:
+    pass
 import threading
 import requests
 import urllib3
@@ -1063,7 +1068,7 @@ def parse_upload(file) -> pd.DataFrame:
             return pd.DataFrame({"text": [l for l in text.splitlines() if l.strip()]})
         except ImportError:
             return pd.DataFrame({"error": ["Install pdfplumber to parse PDFs: pip install pdfplumber"]})
-    elif any(name.endswith(f".{ext}") for ext in ("png", "jpg", "jpeg", "gif", "bmp", "webp", "tiff")):
+    elif any(name.endswith(f".{ext}") for ext in ("png", "jpg", "jpeg", "gif", "bmp", "webp", "tiff", "heic", "heif")):
         return parse_image_with_ai(raw, file.filename)
     else:
         try:
