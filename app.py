@@ -707,6 +707,12 @@ def ensure_log_table():
         print(f"Could not ensure log table (non-critical): {e}")
 
 
+def _ordinal_date(dt: datetime) -> str:
+    day = dt.day
+    suffix = "th" if 11 <= day <= 13 else {1: "st", 2: "nd", 3: "rd"}.get(day % 10, "th")
+    return dt.strftime(f"%B {day}{suffix}, %Y")
+
+
 def log_action(action: str, user_email: str, user_name: str,
                nation_slug: str = "", details: dict = None,
                success: bool = True, error_message: str = ""):
@@ -972,8 +978,12 @@ def parse_image_with_ai(raw: bytes, _filename: str = "") -> pd.DataFrame:
                         "This may be a handwritten note, a printed list, a spreadsheet screenshot, or a photo of contact records. "
                         "Carefully read ALL text in the image, including handwriting. "
                         "Extract each distinct person or contact entry as one JSON object in an array. "
-                        "Fields to extract (use these exact keys when present): "
-                        "name, first_name, last_name, date, phone, email, address, notes, id. "
+                        "Use these exact keys:\n"
+                        "  name, first_name, last_name, date, phone, email, address, notes, id\n"
+                        f"  contact_method — best match from: {json.dumps(CONTACT_METHODS)}\n"
+                        f"  contact_status — best match from: {json.dumps(CONTACT_STATUSES)}\n"
+                        "Infer contact_method and contact_status from the tone and content of the notes even if not explicitly stated. "
+                        "For dates, preserve them exactly as written (e.g. 06/17/2026 or 2026-06-17) — do not reformat. "
                         "If only one person is mentioned, return an array with one object. "
                         "Do NOT invent or duplicate rows — only extract what is actually written. "
                         "Return ONLY a valid JSON array, no markdown, no code fences, no explanation."
@@ -1118,7 +1128,7 @@ def _apply_mapping_locally(column_mapping: dict, all_rows: list) -> list:
     statuses_map = dict(_STATUS_ALIASES)
     statuses_map.update({s: s for s in CONTACT_STATUSES})
     date_fmts = ("%Y-%m-%d", "%m/%d/%Y", "%m/%d/%y", "%d/%m/%Y",
-                 "%B %d, %Y", "%b %d, %Y", "%Y/%m/%d")
+                 "%B %d, %Y", "%b %d, %Y", "%Y/%m/%d", "%m-%d-%Y", "%m-%d-%y")
     result = []
     for raw in all_rows:
         row = {}
@@ -1195,7 +1205,49 @@ Return ONLY JSON (no markdown):
         if content.startswith("json"):
             content = content[4:]
     mapping = json.loads(content.strip())
-    mapping["cleaned_rows"] = _apply_mapping_locally(mapping.get("column_mapping", {}), all_rows)
+    cleaned = _apply_mapping_locally(mapping.get("column_mapping", {}), all_rows)
+    # For rows missing method/status, infer from content in one batch AI call
+    needs_infer = [
+        (i, row["content"])
+        for i, row in enumerate(cleaned)
+        if row.get("content") and (not row.get("contact_method") or not row.get("contact_status"))
+    ]
+    if needs_infer:
+        try:
+            batch_prompt = (
+                f"For each note below, choose the best contact_method from {json.dumps(CONTACT_METHODS)} "
+                f"and contact_status from {json.dumps(CONTACT_STATUSES)}.\n"
+                "Return a JSON array in the same order, each item: "
+                '{"contact_method": "...", "contact_status": "..."}\n\n'
+                + "\n".join(f"{idx+1}. {text[:300]}" for idx, (_, text) in enumerate(needs_infer))
+            )
+            br = requests.post(
+                "https://openrouter.ai/api/v1/chat/completions",
+                headers={"Authorization": f"Bearer {OPENROUTER_API_KEY}", "Content-Type": "application/json"},
+                json={"model": "openai/gpt-4o-mini", "messages": [{"role": "user", "content": batch_prompt}]},
+                timeout=30,
+            )
+            br.raise_for_status()
+            bc = br.json()["choices"][0]["message"]["content"].strip()
+            if bc.startswith("```"):
+                bc = bc.split("```")[1]
+                if bc.startswith("json"):
+                    bc = bc[4:]
+            inferred = json.loads(bc.strip())
+            for idx, (row_i, _) in enumerate(needs_infer):
+                if idx < len(inferred):
+                    inf = inferred[idx]
+                    if not cleaned[row_i].get("contact_method"):
+                        m = inf.get("contact_method", "")
+                        if m in CONTACT_METHODS:
+                            cleaned[row_i]["contact_method"] = m
+                    if not cleaned[row_i].get("contact_status"):
+                        s = inf.get("contact_status", "")
+                        if s in CONTACT_STATUSES:
+                            cleaned[row_i]["contact_status"] = s
+        except Exception:
+            pass  # inference failure is non-critical
+    mapping["cleaned_rows"] = cleaned
     return mapping
 
 
@@ -1324,7 +1376,7 @@ def bulk_import():
         contact_date = str(row.get("contact_date", "") or "").strip()
         if contact_date:
             try:
-                formatted_date = datetime.strptime(contact_date, "%Y-%m-%d").strftime("%B %d, %Y")
+                formatted_date = _ordinal_date(datetime.strptime(contact_date, "%Y-%m-%d"))
             except Exception:
                 formatted_date = contact_date
             parts.append(f"Date Contacted: {formatted_date}")
@@ -1448,7 +1500,7 @@ def import_contact():
     content_parts = []
     if contact_date:
         try:
-            formatted_date = datetime.strptime(contact_date, "%Y-%m-%d").strftime("%B %d, %Y")
+            formatted_date = _ordinal_date(datetime.strptime(contact_date, "%Y-%m-%d"))
         except Exception:
             formatted_date = contact_date
         content_parts.append(f"Date Contacted: {formatted_date}")
