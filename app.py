@@ -12,7 +12,7 @@ import threading
 import requests
 import urllib3
 import pandas as pd
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from flask import Flask, render_template, request, jsonify, redirect, url_for, session
 from flask_login import LoginManager, UserMixin, login_user, logout_user, login_required, current_user
 from authlib.integrations.flask_client import OAuth
@@ -31,6 +31,7 @@ load_dotenv()
 
 app = Flask(__name__)
 app.secret_key = os.getenv("FLASK_SECRET_KEY", "dev-secret-change-me")
+app.config["PERMANENT_SESSION_LIFETIME"] = timedelta(days=90)
 
 login_manager = LoginManager(app)
 login_manager.login_view = "login"
@@ -1675,6 +1676,7 @@ def auth_callback():
     )
     _users[email] = user
     login_user(user, remember=True)
+    session.permanent = True
     log_action("login", email, userinfo.get("name", email))
     nations = get_user_nations(email)
     if len(nations) == 1:
