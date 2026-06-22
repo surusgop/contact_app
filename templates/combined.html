@@ -205,11 +205,34 @@
       min-width: 22px; padding: .1rem .45rem; margin-left: .45rem;
       vertical-align: middle; line-height: 1.4;
     }
-    .result-stat { display: flex; gap: 2rem; margin-bottom: 1.25rem; }
+    .result-stat { display: flex; gap: 2rem; margin-bottom: 1.25rem; flex-wrap: wrap; }
     .stat-ok span { font-family: 'Oswald', sans-serif; font-size: 2.5rem; color: #16a34a; }
     .stat-err span { font-family: 'Oswald', sans-serif; font-size: 2.5rem; color: var(--primary); }
     .stat-label { font-size: .75rem; color: var(--muted); text-transform: uppercase; letter-spacing: .08em; margin-top: .1rem; }
     .error-row { background: #fef2f2; border: 1px solid #fca5a5; border-radius: 6px; padding: .5rem .85rem; font-size: .78rem; color: #991b1b; margin-bottom: .4rem; }
+    /* Layout helpers */
+    .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 1.25rem; margin-top: 1.25rem; align-items: start; }
+    .form-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: .65rem; margin-bottom: .75rem; }
+    /* ── Mobile ─────────────────────────────────────────────────── */
+    @media (max-width: 640px) {
+      .app-nav { padding: .6rem .85rem; }
+      .user-name, .brand-sep, .brand-sub { display: none; }
+      .nav-right { gap: .4rem; }
+      .page { padding: 1rem .75rem 3rem; }
+      .s-card, .s-card-gold { padding: 1rem .85rem; }
+      .page-title { font-size: 1.3rem; }
+      .two-col { grid-template-columns: 1fr; }
+      .row-2 { flex-wrap: wrap; }
+      .col-half { flex-basis: 100%; min-width: 0; }
+      .form-grid { grid-template-columns: 1fr 1fr; }
+      .btn-red-lg { font-size: .82rem; padding: .6rem 1.1rem; }
+      .stat-ok span, .stat-err span { font-size: 1.9rem; }
+      .drop-zone { padding: 1.25rem; }
+    }
+    @media (max-width: 420px) {
+      .form-grid { grid-template-columns: 1fr; }
+      .nav-right .btn-ghost:first-of-type { display: none; } /* hide Change Nation on very small */
+    }
   </style>
 </head>
 <body>
@@ -250,7 +273,7 @@
     </div>
 
     <!-- ── Sections 1+2: File Upload and Paste (side by side) ── -->
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:1.25rem;margin-top:1.25rem;align-items:start;">
+    <div class="two-col">
     <div class="s-card" style="margin-top:0;">
       <div class="s-label">Upload Files</div>
       <div class="drop-zone" id="drop-zone" onclick="document.getElementById('file-input').click()">
@@ -626,7 +649,6 @@
       // Method / Status / Date grid
       const grid = document.createElement('div');
       grid.className = 'form-grid';
-      grid.style.cssText = 'display:grid;grid-template-columns:1fr 1fr 1fr;gap:.65rem;margin-bottom:.75rem;';
 
       // Contact Method
       const methodDiv = document.createElement('div');
@@ -765,7 +787,7 @@
       triggerBtn.style.cssText = 'font-size:.72rem;background:none;border:none;color:var(--primary);cursor:pointer;padding:0;text-decoration:underline dotted;white-space:nowrap;';
       triggerBtn.textContent = `${records.length} matches found — pick one`;
       const panel = document.createElement('div');
-      panel.style.cssText = 'display:none;position:absolute;z-index:300;left:0;top:100%;background:white;border:1.5px solid #e5e7eb;border-radius:8px;box-shadow:0 4px 16px rgba(0,0,0,.12);min-width:290px;max-height:240px;overflow-y:auto;';
+      panel.style.cssText = 'display:none;position:absolute;z-index:300;left:0;top:100%;background:white;border:1.5px solid #e5e7eb;border-radius:8px;box-shadow:0 4px 16px rgba(0,0,0,.12);min-width:min(290px,90vw);max-height:240px;overflow-y:auto;';
       records.forEach(r => {
         const item = document.createElement('div');
         item.style.cssText = 'padding:.55rem .85rem;cursor:pointer;font-size:.8rem;border-bottom:1px solid #f3f4f6;line-height:1.5;';
