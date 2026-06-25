@@ -259,7 +259,7 @@
     <input type="hidden" id="default_author_id" value="{{ author_nb_id }}" />
     <input type="hidden" id="imported_by" value="{{ current_user.name }}" />
     <input type="hidden" id="default_contact_date" value="" />
-    <div style="margin-bottom:1.75rem;display:flex;align-items:flex-start;justify-content:space-between;flex-wrap:wrap;gap:1rem;">
+    <div style="margin-bottom:1.25rem;display:flex;align-items:flex-start;justify-content:space-between;flex-wrap:wrap;gap:1rem;">
       <div>
         <h1 class="page-title">Import Contacts</h1>
         <p class="page-sub">Upload files, paste notes, or enter contacts manually &mdash; all feed into one shared queue.</p>
@@ -269,6 +269,29 @@
           Import All <span id="import-count">0</span> Contacts
         </button>
         <span style="font-size:.82rem;color:#6b7280;"><strong id="footer-count" style="color:#111827;">0</strong> staged</span>
+      </div>
+    </div>
+
+    <!-- ── On Behalf Of ── -->
+    <div class="s-card" style="margin-top:0;padding:.9rem 1.25rem;background:#f9fafb;">
+      <div style="display:flex;align-items:center;gap:1rem;flex-wrap:wrap;">
+        <div style="flex:1;min-width:180px;">
+          <span style="font-size:.78rem;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.1em;">Logging on behalf of</span>
+          <p style="font-size:.73rem;color:#9ca3af;margin-top:.15rem;">Leave blank to log under your own name.</p>
+        </div>
+        <div style="flex:2;min-width:220px;position:relative;">
+          <div id="behalf-chosen" style="display:none;align-items:center;gap:.6rem;">
+            <span id="behalf-name-display" style="font-size:.85rem;font-weight:600;color:var(--text);"></span>
+            <span id="behalf-id-display" style="font-size:.75rem;color:var(--muted);"></span>
+            <button type="button" onclick="clearBehalf()" style="background:none;border:none;cursor:pointer;color:#9ca3af;font-size:.85rem;padding:.1rem .3rem;border-radius:4px;" title="Clear">&times;</button>
+          </div>
+          <div id="behalf-search-wrap" style="position:relative;">
+            <input type="text" id="behalf-input" class="form-control" placeholder="Search volunteer by name…"
+              style="font-size:.82rem;padding:.5rem .8rem;"
+              oninput="onBehalfInput(this.value)" autocomplete="off" />
+            <div id="behalf-dropdown" style="display:none;position:absolute;z-index:300;left:0;right:0;top:100%;background:white;border:1.5px solid #e5e7eb;border-radius:8px;box-shadow:0 4px 16px rgba(0,0,0,.1);max-height:220px;overflow-y:auto;margin-top:2px;"></div>
+          </div>
+        </div>
       </div>
     </div>
 
@@ -380,6 +403,7 @@
     // ── Shared state ──────────────────────────────────────────────────
     let allRows = [];          // rows ready for import (from files, paste, flushed manual)
     let fileRows = [];
+    let onBehalfOf = null;    // { name, nb_id } when logging for someone else
     let pasteRows = [];
     let manualForms = [];      // [{id, data}] — unflushed manual forms
     let manualFormCounter = 0;
@@ -391,8 +415,13 @@
 
     // ── On load ───────────────────────────────────────────────────────
     window.addEventListener('DOMContentLoaded', () => {
-      // Start with one blank manual form
       addManualForm();
+      document.addEventListener('click', e => {
+        const wrap = document.getElementById('behalf-search-wrap');
+        if (wrap && !wrap.contains(e.target)) {
+          document.getElementById('behalf-dropdown').style.display = 'none';
+        }
+      });
     });
 
     // ── File upload ───────────────────────────────────────────────────
@@ -1062,13 +1091,79 @@
       }
     }
 
+    // ── On Behalf Of ─────────────────────────────────────────────────
+    let _behalfTimer = null;
+
+    function onBehalfInput(val) {
+      clearTimeout(_behalfTimer);
+      const dd = document.getElementById('behalf-dropdown');
+      if (!val.trim()) { dd.style.display = 'none'; return; }
+      _behalfTimer = setTimeout(() => searchBehalf(val.trim()), 400);
+    }
+
+    async function searchBehalf(query) {
+      const parts = query.trim().split(/\s+/);
+      const first = parts[0] || '';
+      const last = parts.slice(1).join(' ') || '';
+      const dd = document.getElementById('behalf-dropdown');
+      dd.innerHTML = '<div style="padding:.5rem .85rem;font-size:.8rem;color:var(--muted);">Searching…</div>';
+      dd.style.display = 'block';
+      try {
+        const url = `/search-by-name?first=${encodeURIComponent(first)}&last=${encodeURIComponent(last)}&nation_slug=${encodeURIComponent(NATION_SLUG)}`;
+        const resp = await fetch(url);
+        const json = await resp.json();
+        dd.innerHTML = '';
+        if (!json.success || !json.records || !json.records.length) {
+          dd.innerHTML = '<div style="padding:.5rem .85rem;font-size:.8rem;color:var(--muted);">No matches found.</div>';
+          return;
+        }
+        json.records.forEach(r => {
+          const item = document.createElement('div');
+          item.style.cssText = 'padding:.55rem .85rem;cursor:pointer;font-size:.82rem;border-bottom:1px solid #f3f4f6;';
+          const addrParts = [r.address1, r.city, r.state].filter(Boolean);
+          item.innerHTML = `<strong>${r.first_name||''} ${r.last_name||''}${r.suffix ? ', '+r.suffix : ''}</strong><span style="color:var(--muted);font-size:.74rem;margin-left:.5rem;">ID: ${r.nb_id}</span>${addrParts.length ? '<br><span style="color:#9ca3af;font-size:.73rem;">'+addrParts.join(', ')+'</span>' : ''}`;
+          item.addEventListener('mouseover', () => item.style.background = '#fef2f2');
+          item.addEventListener('mouseout',  () => item.style.background = '');
+          item.addEventListener('click', () => selectBehalf(r));
+          dd.appendChild(item);
+        });
+      } catch(e) {
+        dd.innerHTML = '<div style="padding:.5rem .85rem;font-size:.8rem;color:var(--primary);">Search failed.</div>';
+      }
+    }
+
+    function selectBehalf(r) {
+      onBehalfOf = { name: `${r.first_name||''} ${r.last_name||''}`.trim(), nb_id: String(r.nb_id) };
+      document.getElementById('behalf-dropdown').style.display = 'none';
+      document.getElementById('behalf-search-wrap').style.display = 'none';
+      const chosen = document.getElementById('behalf-chosen');
+      document.getElementById('behalf-name-display').textContent = onBehalfOf.name;
+      document.getElementById('behalf-id-display').textContent = `(ID: ${onBehalfOf.nb_id})`;
+      chosen.style.display = 'flex';
+    }
+
+    function clearBehalf() {
+      onBehalfOf = null;
+      document.getElementById('behalf-chosen').style.display = 'none';
+      document.getElementById('behalf-search-wrap').style.display = 'block';
+      document.getElementById('behalf-input').value = '';
+    }
+
+    function getEffectiveAuthor() {
+      const selfId   = document.getElementById('default_author_id').value.trim();
+      const selfName = document.getElementById('imported_by').value.trim();
+      if (onBehalfOf) {
+        return { authorId: onBehalfOf.nb_id, importedBy: `${selfName} on behalf of ${onBehalfOf.name}` };
+      }
+      return { authorId: selfId, importedBy: selfName };
+    }
+
     // ── Import ────────────────────────────────────────────────────────
     let _lastErrors = [];
 
     async function importSection(section) {
-      const authorId = document.getElementById('default_author_id').value.trim();
+      const { authorId, importedBy } = getEffectiveAuthor();
       if (!authorId) { alert('Author ID is missing. Please sign out and sign back in.'); return; }
-      const importedBy = document.getElementById('imported_by').value.trim();
       const defaultDate = document.getElementById('default_contact_date').value.trim();
 
       let rows = [];
@@ -1120,9 +1215,8 @@
     }
 
     async function runImport() {
-      const authorId = document.getElementById('default_author_id').value.trim();
-      if (!authorId) { alert('Please enter a default Author ID.'); return; }
-      const importedBy = document.getElementById('imported_by').value.trim();
+      const { authorId, importedBy } = getEffectiveAuthor();
+      if (!authorId) { alert('Author ID is missing. Please sign out and sign back in.'); return; }
       const defaultDate = document.getElementById('default_contact_date').value.trim();
 
       // Collect allRows + any unflushed manual forms with data
