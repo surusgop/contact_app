@@ -1098,18 +1098,15 @@
       clearTimeout(_behalfTimer);
       const dd = document.getElementById('behalf-dropdown');
       if (!val.trim()) { dd.style.display = 'none'; return; }
-      _behalfTimer = setTimeout(() => searchBehalf(val.trim()), 400);
+      _behalfTimer = setTimeout(() => searchBehalf(val.trim()), 200);
     }
 
     async function searchBehalf(query) {
-      const parts = query.trim().split(/\s+/);
-      const first = parts[0] || '';
-      const last = parts.slice(1).join(' ') || '';
       const dd = document.getElementById('behalf-dropdown');
       dd.innerHTML = '<div style="padding:.5rem .85rem;font-size:.8rem;color:var(--muted);">Searching…</div>';
       dd.style.display = 'block';
       try {
-        const url = `/search-by-name?first=${encodeURIComponent(first)}&last=${encodeURIComponent(last)}&nation_slug=${encodeURIComponent(NATION_SLUG)}`;
+        const url = `/search-volunteer?q=${encodeURIComponent(query)}&nation_slug=${encodeURIComponent(NATION_SLUG)}`;
         const resp = await fetch(url);
         const json = await resp.json();
         dd.innerHTML = '';

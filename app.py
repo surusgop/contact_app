@@ -968,6 +968,45 @@ def search_by_name():
         return jsonify({"success": False, "error": str(e)}), 500
 
 
+@app.route("/search-volunteer")
+@login_required
+def search_volunteer():
+    """Prefix autocomplete for volunteer names — used by 'log on behalf of'."""
+    q = request.args.get("q", "").strip().lower()
+    nation_slug = request.args.get("nation_slug", "").strip()
+    if not q or not nation_slug:
+        return jsonify({"success": True, "records": []})
+    if not WAREHOUSE_ID:
+        return jsonify({"success": False, "error": "Warehouse not configured"}), 500
+    try:
+        result = get_db().statement_execution.execute_statement(
+            warehouse_id=WAREHOUSE_ID,
+            statement="""
+                SELECT nb_id, first_name, last_name, suffix,
+                       COALESCE(`mailing_address.address1`, `registered_address.address1`, `home_address.address1`) AS address1,
+                       COALESCE(`mailing_address.city`,     `registered_address.city`,     `home_address.city`)     AS city,
+                       COALESCE(`mailing_address.state`,    `registered_address.state`,    `home_address.state`)    AS state
+                FROM universal.prod.signups
+                WHERE nation = :nation
+                  AND (LOWER(first_name) LIKE :prefix OR LOWER(last_name) LIKE :prefix)
+                LIMIT 12
+            """,
+            parameters=[
+                StatementParameterListItem(name="nation", value=nation_slug),
+                StatementParameterListItem(name="prefix", value=q + "%"),
+            ],
+            wait_timeout="15s",
+        )
+        if result.status.state != StatementState.SUCCEEDED:
+            return jsonify({"success": False, "error": "Query failed"}), 500
+        cols = [c.name for c in result.manifest.schema.columns]
+        rows = (result.result.data_array if result.result else None) or []
+        records = [dict(zip(cols, row)) for row in rows]
+        return jsonify({"success": True, "records": records})
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
 @app.route("/search-signup")
 @login_required
 def search_signup():
