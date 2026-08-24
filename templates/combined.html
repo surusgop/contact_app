@@ -305,6 +305,12 @@
         <div class="drop-sub">CSV, Excel, Word, PDF, JSON, PowerPoint, Numbers, ODS, RTF, ZIP, Images (JPG, PNG, HEIC, etc.)</div>
       </div>
       <input type="file" id="file-input" multiple style="display:none;" />
+      <div style="margin-top:.85rem;">
+        <label class="form-label">Tag this entire list <span style="color:var(--muted);font-weight:400;">(optional)</span></label>
+        <input type="text" class="form-control" id="file-list-tag"
+               placeholder="e.g. Canvass Kickoff 6/17" style="font-size:.82rem;padding:.5rem .8rem;" />
+        <div class="form-text">Applied to every contact from this upload, in addition to any tag already in the file itself.</div>
+      </div>
       <div id="file-list" style="margin-top:1rem;display:none;">
         <div id="file-list-items" style="margin-bottom:.85rem;"></div>
         <button class="btn-red" id="upload-btn" onclick="startUpload()">Upload &amp; Map with AI</button>
@@ -321,6 +327,11 @@
       <div class="s-label">Paste Notes</div>
       <p style="font-size:.8rem;color:var(--muted);margin-bottom:.75rem;">Type or paste notes &mdash; AI extracts names, dates, method, and status automatically.</p>
       <textarea id="paste-text" rows="5" class="form-control" placeholder="e.g. Called John Smith on June 17th, had a great conversation about the upcoming event. He's interested in volunteering.&#10;&#10;Knocked on Jane Doe's door, no answer."></textarea>
+      <div style="margin-top:.85rem;">
+        <label class="form-label">Tag this entire list <span style="color:var(--muted);font-weight:400;">(optional)</span></label>
+        <input type="text" class="form-control" id="paste-list-tag"
+               placeholder="e.g. Canvass Kickoff 6/17" style="font-size:.82rem;padding:.5rem .8rem;" />
+      </div>
       <div style="margin-top:.75rem;display:flex;align-items:center;gap:.75rem;">
         <button type="button" id="paste-btn" onclick="processPaste()" class="btn-red">Process Text</button>
         <div id="paste-status" style="display:none;font-size:.82rem;color:var(--muted);"></div>
@@ -362,6 +373,7 @@
               <th>Contact Status</th>
               <th>Date Contacted <span style="font-weight:400;color:var(--muted);">(added to notes)</span></th>
               <th>Notes</th>
+              <th>Tag <span style="font-weight:400;color:var(--muted);">(optional)</span></th>
               <th style="width:32px;"></th>
             </tr>
           </thead>
@@ -398,7 +410,7 @@
     const NATION_SLUG = "{{ default_nation_slug }}";
     const CONTACT_METHODS = {{ contact_methods | tojson }};
     const CONTACT_STATUSES = {{ contact_statuses | tojson }};
-    const NB_FIELDS = ['signup_id', 'contact_method', 'contact_status', 'contact_date', 'content'];
+    const NB_FIELDS = ['signup_id', 'contact_method', 'contact_status', 'contact_date', 'content', 'tag'];
 
     // ── Shared state ──────────────────────────────────────────────────
     let allRows = [];          // rows ready for import (from files, paste, flushed manual)
@@ -486,6 +498,7 @@
         return;
       }
       const newRows = allResults.flatMap(r => r.all_rows || []);
+      mergeListTag(newRows, document.getElementById('file-list-tag').value);
       fileRows = fileRows.concat(newRows);
       addToQueue(newRows);
       const bar = document.getElementById('file-import-bar');
@@ -536,6 +549,7 @@
         });
         const json = await resp.json();
         if (!json.success) throw new Error(json.error || 'Unknown error');
+        mergeListTag(json.all_rows, document.getElementById('paste-list-tag').value);
         pasteRows = pasteRows.concat(json.all_rows);
         addToQueue(json.all_rows);
         status.innerHTML = `<span style="color:#16a34a;">&#x2713; ${json.all_rows.length} contact${json.all_rows.length !== 1 ? 's' : ''} extracted and added to queue.</span>`;
@@ -552,6 +566,21 @@
         btn.disabled = false;
         btn.textContent = 'Process Text';
       }
+    }
+
+    // Fold a "tag this entire list" field value into every row's own tag,
+    // comma-joined with whatever tag the row already carries (e.g. from an
+    // AI-detected spreadsheet column) — the server splits/dedupes this on
+    // import, so a rough client-side join is all that's needed here.
+    function mergeListTag(rows, listTagValue) {
+      const listTag = (listTagValue || '').trim();
+      if (!listTag) return;
+      rows.forEach(row => {
+        const existing = (row.tag || '').trim();
+        if (!existing) { row.tag = listTag; return; }
+        const already = existing.split(/[,;]/).some(t => t.trim().toLowerCase() === listTag.toLowerCase());
+        if (!already) row.tag = `${existing}, ${listTag}`;
+      });
     }
 
     // ── Queue management ──────────────────────────────────────────────
@@ -599,7 +628,7 @@
       const formData = {
         signup_id: '', _first_name: '', _last_name: '', _full_name: '',
         contact_method: '', contact_status: '', contact_date: '', content: '',
-        author_id: '',
+        author_id: '', tag: '',
       };
       manualForms.push({ id, data: formData });
 
@@ -745,6 +774,19 @@
       notesTA.addEventListener('input', () => { formData.content = notesTA.value; updateQueueCount(); });
       card.appendChild(notesLbl);
       card.appendChild(notesTA);
+
+      // Tag
+      const tagLbl = document.createElement('label');
+      tagLbl.className = 'form-label';
+      tagLbl.style.cssText = 'margin-top:.75rem;';
+      tagLbl.innerHTML = 'Tag <span style="color:var(--muted);font-weight:400;">(optional)</span>';
+      const tagInp = document.createElement('input');
+      tagInp.type = 'text';
+      tagInp.className = 'form-control';
+      tagInp.placeholder = 'e.g. Canvass Kickoff 6/17';
+      tagInp.addEventListener('input', () => { formData.tag = tagInp.value.trim(); });
+      card.appendChild(tagLbl);
+      card.appendChild(tagInp);
 
       // Action row
       const actionRow = document.createElement('div');
@@ -961,7 +1003,7 @@
     }
 
     function addBlankRow() {
-      const rowData = { signup_id: '', contact_method: '', contact_status: '', contact_date: '', content: '' };
+      const rowData = { signup_id: '', contact_method: '', contact_status: '', contact_date: '', content: '', tag: '' };
       allRows.push(rowData);
       renderPreviewRow(document.getElementById('preview-body'), rowData, NB_FIELDS);
       showPreviewSection();
@@ -1192,10 +1234,12 @@
           allRows = allRows.filter(r => !fileRows.includes(r));
           fileRows = [];
           document.getElementById('file-import-bar').style.display = 'none';
+          document.getElementById('file-list-tag').value = '';
         } else if (section === 'paste') {
           allRows = allRows.filter(r => !pasteRows.includes(r));
           pasteRows = [];
           document.getElementById('paste-import-bar').style.display = 'none';
+          document.getElementById('paste-list-tag').value = '';
         } else if (section === 'manual') {
           manualForms = [];
           document.getElementById('manual-forms-container').innerHTML = '';
@@ -1298,6 +1342,27 @@
             </div>`).join('')}
           </div>`;
       }
+      // Tag outcomes are reported separately from contact-log outcomes —
+      // they're independent operations (see docs/plans.md §2), so a failed
+      // tag shouldn't read as a failed contact and vice versa.
+      const tags = results.tags;
+      if (tags && (tags.applied || tags.already_tagged || tags.failed)) {
+        html += `<div class="s-label" style="margin:1.25rem 0 1rem;">Tagging</div>
+          <div class="result-stat">
+            <div class="stat-ok"><span>${tags.applied}</span><div class="stat-label">Tags Applied</div></div>
+            ${tags.already_tagged ? `<div class="stat-ok"><span>${tags.already_tagged}</span><div class="stat-label">Already Tagged</div></div>` : ''}
+            <div class="stat-err"><span>${tags.failed}</span><div class="stat-label">Tag Failures</div></div>
+          </div>`;
+        if (tags.errors && tags.errors.length) {
+          html += `<div class="s-label" style="margin:.75rem 0 .5rem;">Failed Tags</div>
+            <div style="max-height:220px;overflow-y:auto;margin-bottom:1rem;">
+            ${tags.errors.map(e => `
+              <div class="error-row">
+                <strong>Row ${e.row}</strong> (tag &ldquo;${e.tag}&rdquo;): ${e.error}
+              </div>`).join('')}
+            </div>`;
+        }
+      }
       content.innerHTML = html;
       section.style.display = 'block';
       section.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -1321,9 +1386,11 @@
       document.getElementById('upload-status').innerHTML = '';
       document.getElementById('paste-status').style.display = 'none';
       document.getElementById('paste-text').value = '';
+      document.getElementById('paste-list-tag').value = '';
       document.getElementById('file-list').style.display = 'none';
       document.getElementById('file-list-items').innerHTML = '';
       document.getElementById('file-input').value = '';
+      document.getElementById('file-list-tag').value = '';
       document.getElementById('manual-forms-container').innerHTML = '';
       selectedFiles = [];
       const fileBar = document.getElementById('file-import-bar');

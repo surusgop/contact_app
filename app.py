@@ -667,6 +667,95 @@ def get_nb_token(nation_slug: str) -> str:
     return resp.json()["access_token"]
 
 
+# ── Tagging (signup_tags / signup_taggings) — see docs/plans.md §3 ──────────
+
+def split_tag_names(raw: str) -> list:
+    """Split a tag field/cell that may hold multiple tags (comma and/or
+    semicolon separated, e.g. "Volunteer, Event Attendee") into a clean list -
+    trimmed, empties dropped, deduped case-insensitively while keeping the
+    first-seen casing and order. A single tag with no separator just comes
+    back as a one-item list."""
+    if not raw:
+        return []
+    seen = set()
+    names = []
+    for part in re.split(r"[,;]", raw):
+        part = part.strip()
+        if not part:
+            continue
+        key = part.lower()
+        if key in seen:
+            continue
+        seen.add(key)
+        names.append(part)
+    return names
+
+
+def find_or_create_tag(nation_slug: str, token: str, tag_name: str) -> str:
+    """Return the signup_tag id for tag_name in this nation, creating it if it
+    doesn't exist yet. NationBuilder tag names are unique and case-insensitive,
+    and the API's default (no-clause) filter is also a case-insensitive exact
+    match, so filtering by name is a correct existence check."""
+    headers = {
+        "Authorization": f"Bearer {token}",
+        "Content-Type": "application/json",
+        "Accept": "application/json",
+    }
+    base = f"https://{nation_slug}.nationbuilder.com/api/v2/signup_tags"
+    resp = requests.get(base, headers=headers, params={"filter[name]": tag_name})
+    resp.raise_for_status()
+    existing = resp.json().get("data") or []
+    if existing:
+        return str(existing[0]["id"])
+    resp = requests.post(
+        base, headers=headers,
+        json={"data": {"type": "signup_tags", "attributes": {"name": tag_name}}},
+    )
+    resp.raise_for_status()
+    return str(resp.json()["data"]["id"])
+
+
+def resolve_tags_for_batch(nation_slug: str, token: str, tag_names) -> dict:
+    """Resolve every distinct tag name in a batch exactly once, returning
+    {tag_name.lower(): tag_id}. Call this once per import rather than calling
+    find_or_create_tag per row - see docs/plans.md §3.4 (performance, and
+    avoiding a race where two rows both try to create the same new tag)."""
+    resolved = {}
+    for name in tag_names:
+        key = (name or "").strip().lower()
+        if not key or key in resolved:
+            continue
+        resolved[key] = find_or_create_tag(nation_slug, token, name.strip())
+    return resolved
+
+
+def apply_tag_to_signup(nation_slug: str, token: str, signup_id: str, tag_id: str) -> bool:
+    """Create a signup_tagging linking signup_id to tag_id.
+    Returns True if a new tagging was created, False if this signup already
+    had the tag (a no-op, not a failure - confirmed against a real nation:
+    NationBuilder returns 422 {"errors": [{"meta": {"attribute": "tag_id",
+    "code": "taken", ...}}]} for a duplicate signup+tag pair). Raises
+    requests.HTTPError for any other failure."""
+    resp = requests.post(
+        f"https://{nation_slug}.nationbuilder.com/api/v2/signup_taggings",
+        headers={
+            "Authorization": f"Bearer {token}",
+            "Content-Type": "application/json",
+            "Accept": "application/json",
+        },
+        json={"data": {"type": "signup_taggings", "attributes": {
+            "signup_id": str(signup_id),
+            "tag_id": str(tag_id),
+        }}},
+    )
+    if resp.status_code == 422:
+        errors = (resp.json() or {}).get("errors", [])
+        if any((e.get("meta") or {}).get("code") == "taken" for e in errors):
+            return False  # already tagged - not a failure
+    resp.raise_for_status()
+    return True
+
+
 def load_all_nations():
     if not WAREHOUSE_ID:
         return []
@@ -1373,6 +1462,8 @@ def _apply_mapping_locally(column_mapping: dict, all_rows: list) -> list:
                 parts = val.split(None, 1)
                 row["_first_name"] = parts[0] if parts else ""
                 row["_last_name"] = parts[1] if len(parts) > 1 else ""
+            elif nb == "_tag":
+                row["tag"] = val
             else:
                 row[nb] = val
         result.append(row)
@@ -1395,6 +1486,11 @@ Name handling (IMPORTANT — do NOT mark name columns as null):
 - Full name column (e.g. "Name", "Full Name", "Contact") → use "_full_name"
 - First name only → use "_first_name"
 - Last name only → use "_last_name"
+
+Tag handling (IMPORTANT — do NOT mark a tag column as null):
+- A column holding a tag/label to apply to that person → use "_tag"
+- Match this REGARDLESS of capitalization or exact wording — "tag", "TAG", "Tag",
+  "tags", "Tags", "TAGS", "Label", "Labels", "Group" all mean the same thing here.
 
 Source columns: {json.dumps(columns)}
 Sample rows: {json.dumps(sample)}
@@ -1625,6 +1721,21 @@ def bulk_import():
     }
     results = {"success": 0, "failed": 0, "errors": []}
     contacts_logged = []
+
+    # ── Tag resolution — once per batch, not once per row. Rows may carry a
+    # per-row "tag" (from an AI-detected spreadsheet column) and/or a "list_tag"
+    # (the whole-list tag field); a row with both gets both applied.
+    # See docs/plans.md §3.4 for why this has to happen up front. ────────────
+    all_tag_names = set()
+    for row in rows:
+        for key in ("tag", "list_tag"):
+            val = str(row.get(key, "") or "").strip()
+            for name in split_tag_names(val):
+                all_tag_names.add(name)
+    tag_map = resolve_tags_for_batch(nation_slug, token, all_tag_names) if all_tag_names else {}
+    tags_results = {"applied": 0, "already_tagged": 0, "failed": 0, "errors": []}
+    tags_applied_log = []
+
     for i, row in enumerate(rows):
         attributes = {k: v for k, v in row.items()
                       if k in ("contact_method", "contact_status", "content")}
@@ -1682,13 +1793,44 @@ def bulk_import():
         except Exception as e:
             results["failed"] += 1
             results["errors"].append({"row": i + 1, "error": str(e)})
+
+        # ── Tag application — independent of the contact POST above; a
+        # signup gets tagged even if its contact-log entry failed, as long as
+        # it has a signup_id and at least one tag name. See docs/plans.md §2.
+        signup_id = str(row.get("signup_id", "") or "").strip()
+        row_tag_names = []
+        for key in ("tag", "list_tag"):
+            val = str(row.get(key, "") or "").strip()
+            for tag_name in split_tag_names(val):
+                if tag_name.lower() not in [t.lower() for t in row_tag_names]:
+                    row_tag_names.append(tag_name)
+        if signup_id and row_tag_names:
+            name = (row.get("_full_name") or
+                    f"{row.get('_first_name', '')} {row.get('_last_name', '')}".strip())
+            for tag_name in row_tag_names:
+                tag_id = tag_map.get(tag_name.strip().lower())
+                if not tag_id:
+                    continue  # shouldn't happen - every name was resolved up front
+                try:
+                    applied = apply_tag_to_signup(nation_slug, token, signup_id, tag_id)
+                    if applied:
+                        tags_results["applied"] += 1
+                    else:
+                        tags_results["already_tagged"] += 1
+                    tags_applied_log.append({"signup_id": signup_id, "tag": tag_name, "name": name})
+                except Exception as e:
+                    tags_results["failed"] += 1
+                    tags_results["errors"].append({"row": i + 1, "tag": tag_name, "error": str(e)})
+
+    results["tags"] = tags_results
     log_action("bulk_import", current_user.email, current_user.name, nation_slug, {
         "total_rows": len(rows),
         "imported": results["success"],
         "failed": results["failed"],
         "imported_by": imported_by or current_user.name,
         "contacts_logged": contacts_logged,
-    }, success=results["failed"] == 0)
+        "tags_applied": tags_applied_log,
+    }, success=(results["failed"] == 0 and tags_results["failed"] == 0))
     return jsonify({"success": True, "results": results})
 
 
@@ -1796,11 +1938,23 @@ def import_contact():
     if relationships:
         body["data"]["relationships"] = relationships
 
+    signup_id = form.get("signup_id", "").strip()
+    tag_name = form.get("tag", "").strip()
+
     try:
         token = get_nb_token(nation_slug)
-        url = f"https://{nation_slug}.nationbuilder.com/api/v2/contacts"
+    except Exception as e:
+        log_action("single_import", current_user.email, current_user.name, nation_slug,
+                   {"signup_id": signup_id}, success=False, error_message=str(e))
+        return jsonify({"success": False, "error": f"Auth failed: {e}"}), 500
+
+    # ── Contact log entry ────────────────────────────────────────────────
+    contact_error = None
+    contact_error_status = 400
+    contact_data = None
+    try:
         resp = requests.post(
-            url,
+            f"https://{nation_slug}.nationbuilder.com/api/v2/contacts",
             headers={
                 "Authorization": f"Bearer {token}",
                 "Content-Type": "application/json",
@@ -1809,14 +1963,7 @@ def import_contact():
             json=body,
         )
         resp.raise_for_status()
-        data = resp.json()
-        log_action("single_import", current_user.email, current_user.name, nation_slug, {
-            "contact_id": (data.get("data") or {}).get("id"),
-            "signup_id": form.get("signup_id", ""),
-            "method": form.get("contact_method", ""),
-            "status": form.get("contact_status", ""),
-        })
-        return jsonify({"success": True, "data": data})
+        contact_data = resp.json()
     except requests.HTTPError as e:
         detail = None
         if e.response is not None:
@@ -1824,14 +1971,39 @@ def import_contact():
                 detail = e.response.json()
             except Exception:
                 detail = e.response.text
-        log_action("single_import", current_user.email, current_user.name, nation_slug,
-                   {"signup_id": form.get("signup_id", "")},
-                   success=False, error_message=str(e))
-        return jsonify({"success": False, "error": str(e), "detail": detail}), 400
+        contact_error = {"error": str(e), "detail": detail}
+        contact_error_status = 400
     except Exception as e:
-        log_action("single_import", current_user.email, current_user.name, nation_slug,
-                   {}, success=False, error_message=str(e))
-        return jsonify({"success": False, "error": str(e)}), 500
+        contact_error = {"error": str(e)}
+        contact_error_status = 500
+
+    # ── Tag application — independent of the contact log entry above; a
+    # signup can get tagged even if the contact log POST failed, or not be
+    # tagged at all if no tag/signup_id was given. The tag field may itself
+    # hold several comma/semicolon-separated tags. See docs/plans.md §2. ──
+    tag_results = []
+    if signup_id:
+        for name in split_tag_names(tag_name):
+            try:
+                tag_id = find_or_create_tag(nation_slug, token, name)
+                applied = apply_tag_to_signup(nation_slug, token, signup_id, tag_id)
+                tag_results.append({"success": True, "tag": name, "already_tagged": not applied})
+            except Exception as e:
+                tag_results.append({"success": False, "tag": name, "error": str(e)})
+
+    log_action("single_import", current_user.email, current_user.name, nation_slug, {
+        "contact_id": (contact_data.get("data") or {}).get("id") if contact_data else None,
+        "signup_id": signup_id,
+        "method": form.get("contact_method", ""),
+        "status": form.get("contact_status", ""),
+        "tags": tag_results,
+    }, success=(contact_error is None and all(t.get("success", False) for t in tag_results)),
+       error_message=(contact_error or {}).get("error", ""))
+
+    if contact_error:
+        return jsonify({"success": False, "error": contact_error["error"],
+                         "detail": contact_error.get("detail"), "tag_results": tag_results}), contact_error_status
+    return jsonify({"success": True, "data": contact_data, "tag_results": tag_results})
 
 
 if __name__ == "__main__":
