@@ -129,14 +129,36 @@ Not a repo file change, but directly informs the code above and is worth recordi
 
 This same live-test-then-clean-up pattern was repeated for every subsequent round of changes (route wiring, AI column detection, multi-tag splitting) — each round's test tags were deleted and the test signup verified back to its original three tags (`1486`, `1519`, `729`) afterward, every time.
 
+---
+
+## 5. Production browser walkthrough — bug found and fixed (not tagging-related)
+
+Once the tagging code was live on Railway, testing moved to a real browser session against `affordablenaperville` (a real nation, but one being deleted the same day — used freely as a de facto sandbox). This surfaced two separate issues, neither caused by the tagging feature:
+
+**Bad `author_nb_id` in session data.** A manual-entry test failed with a confusing NationBuilder error (`included..attributes.id should be type integer_id`). Root-caused by reproducing the exact request body directly against the API: the nation's saved `author_nb_id` was literally the string `"Winin2030!"` — a sign-in key from a teammate that had been typed into the "Your NationBuilder ID" field by mistake during Setup, rather than an actual numeric ID. NationBuilder correctly rejected it, just via an unhelpfully generic message. **Tagging itself succeeded independently in the same test** (`1 tags applied, 0 tag failures`), confirming the independence design in `plans.md §2` held up under a real, unplanned failure — not just the deliberate ones tested against `suruszoo`.
+
+Fixed the immediate data problem by writing a corrected `nation_setup` audit-log entry (the mechanism `get_user_nations` already reads from) with a real signup ID (`4`, Kartik Kulkarni's real record in that nation) in place of the bad value. One diagnostic note for future debugging sessions: `log_action`'s background write uses a daemon thread — calling it from a short-lived one-off script that exits immediately (rather than the long-running Flask process) can silently drop the write, since the process exits before the thread's network call completes. The fix landed only once the verifying script stayed alive long enough (`time.sleep`) for the write to finish.
+
+**The actual bug: no escape hatch in Setup.** Separately, and more importantly: once a user has *any* saved nation, [templates/setup.html](../templates/setup.html) permanently locked them into a "pick from your saved nations" screen with no way to add a different nation or fix a wrong ID — signing out and back in doesn't help either, since `auth_callback` and Setup both rebuild the nation list from the same audit-log data, not session state. This is how the bad ID above got stuck in place. **Fixed:**
+
+- Both the "returning user" nation-picker and the "search for a nation" flow are now always rendered in the page (previously it was a hard either/or via server-side `{% if %}`), toggled client-side instead of being a dead end.
+- A new **"+ Use a different nation"** link on the nation-picker screen opens the search flow fresh.
+- A new **"Edit ID"** button next to each saved nation skips straight to the ID field, pre-filled with the current (possibly wrong) value, ready to correct — no need to re-search the nation from scratch.
+- A **"← Back to my nations"** link appears in the search/edit flow, but only for users who actually have saved nations to go back to.
+
+Verified via `app.test_client()`: a returning user's render shows the picker visible / search flow hidden / Back link present; a brand-new user's render shows the opposite, with no Back link (nothing to go back to). Script braces/parens balanced, same as the `combined.html` check.
+
+---
+
 ## Current git state
 
-As of this log, nothing in this conversation has been committed:
+**Update:** everything through the Phase 1 tagging work (`README.md`, `app.py`, `templates/combined.html`) was committed and pushed to `main` directly by you via VS Code (`d152fcb "tags field"`), and confirmed live on Railway. The Setup escape-hatch fix in §5 above is newer than that commit and not yet pushed:
 
 | Status | Paths |
 | --- | --- |
-| Modified, uncommitted | `README.md`, `app.py`, `templates/combined.html` |
-| Untracked (new) | `docs/` (this file, `changes.md`, plus `walkthrough.md`, `goal.md`, `plans.md`, `nationbuilder-guide.md`, `databricks-auth-guide.md`, and the raw pasted source docs `databricks.md`/`nationbuilder.md`) |
+| Modified, uncommitted | `templates/setup.html` (§5 fix), `docs/changes.md` (this file) |
+| Committed & pushed (`d152fcb`) | `README.md`, `app.py`, `templates/combined.html` |
+| Untracked (new) | `docs/` minus this file's already-committed state — `walkthrough.md`, `goal.md`, `plans.md`, `nationbuilder-guide.md`, `databricks-auth-guide.md`, and the raw pasted source docs `databricks.md`/`nationbuilder.md` |
 | Not tracked, not in git (by design) | `.env` — contains live secrets, correctly gitignored |
 | Deleted | `token.txt` |
 

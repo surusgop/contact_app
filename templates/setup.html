@@ -71,6 +71,20 @@
     .nation-btn-name { font-size: .95rem; font-weight: 600; color: #111827; }
     .nation-btn-slug { font-size: .78rem; color: #6b7280; margin-top: .15rem; }
     .nation-btn-arrow { color: #9ca3af; font-size: 1rem; }
+    .nation-row { display: flex; align-items: stretch; gap: .5rem; margin-bottom: .5rem; }
+    .nation-row .nation-btn { margin-bottom: 0; flex: 1; }
+    .nation-edit-btn {
+      flex-shrink: 0; background: #ffffff; border: 1.5px solid #e5e7eb; border-radius: 10px;
+      padding: 0 .9rem; font-size: .78rem; color: #6b7280; cursor: pointer;
+      font-family: 'Inter', sans-serif; transition: border-color .15s, color .15s;
+    }
+    .nation-edit-btn:hover { border-color: #2563eb; color: #2563eb; }
+    .link-btn {
+      display: block; width: 100%; text-align: center; background: none; border: none;
+      color: #2563eb; font-size: .82rem; cursor: pointer; padding: .6rem; margin-top: .25rem;
+      font-family: 'Inter', sans-serif;
+    }
+    .link-btn:hover { text-decoration: underline; }
     /* Form elements (for new-user flow) */
     .form-label { font-size: .78rem; font-weight: 500; color: #6b7280; margin-bottom: .35rem; display: block; }
     .form-label span { color: #dc2626; }
@@ -157,68 +171,82 @@
       </div>
     </div>
 
-    {% if user_nations %}
-    <!-- Returning user: just show nation buttons, auto-save on click -->
-    <div class="section-label">Choose Your Nation</div>
-    <p style="font-size:.84rem;color:#6b7280;margin-bottom:1.1rem;line-height:1.55;">Select which nation you're logging contacts for today.</p>
-    <div id="nation-list">
-      {% for nation in user_nations %}
-      <button type="button" class="nation-btn"
-              data-slug="{{ nation.slug }}"
-              data-name="{{ nation.name }}"
-              data-nbid="{{ nation.author_nb_id }}"
-              onclick="selectNation(this)">
-        <div>
-          <div class="nation-btn-name">{{ nation.name }}</div>
-          <div class="nation-btn-slug">{{ nation.slug }}</div>
+    {% set has_nations = user_nations|length > 0 %}
+
+    <!-- Returning user: nation buttons, auto-save on click. Also reachable
+         later via "Edit ID" / "Use a different nation" below, not just on
+         first load - see docs/changes.md for why that escape hatch matters. -->
+    <div id="returning-block" style="display:{{ 'block' if has_nations else 'none' }};">
+      <div class="section-label">Choose Your Nation</div>
+      <p style="font-size:.84rem;color:#6b7280;margin-bottom:1.1rem;line-height:1.55;">Select which nation you're logging contacts for today.</p>
+      <div id="nation-list">
+        {% for nation in user_nations %}
+        <div class="nation-row">
+          <button type="button" class="nation-btn"
+                  data-slug="{{ nation.slug }}"
+                  data-name="{{ nation.name }}"
+                  data-nbid="{{ nation.author_nb_id }}"
+                  onclick="selectNation(this)">
+            <div>
+              <div class="nation-btn-name">{{ nation.name }}</div>
+              <div class="nation-btn-slug">{{ nation.slug }}</div>
+            </div>
+            <span class="nation-btn-arrow">→</span>
+          </button>
+          <button type="button" class="nation-edit-btn" title="Fix a wrong NationBuilder ID for this nation"
+                  data-slug="{{ nation.slug }}" data-name="{{ nation.name }}" data-nbid="{{ nation.author_nb_id }}"
+                  onclick="editNation(event, this)">Edit ID</button>
         </div>
-        <span class="nation-btn-arrow">→</span>
-      </button>
-      {% endfor %}
-    </div>
-    <div id="saving-status" style="display:none;" class="saving-overlay">
-      <span class="spinner"></span> Saving…
+        {% endfor %}
+      </div>
+      <div id="saving-status" style="display:none;" class="saving-overlay">
+        <span class="spinner"></span> Saving…
+      </div>
+      <button type="button" class="link-btn" onclick="addNewNation()">+ Use a different nation</button>
     </div>
 
-    {% else %}
-    <!-- New user: show search + NB ID flow -->
-    <div class="section-label">Select Your Nation</div>
-    <p style="font-size:.84rem;color:#6b7280;margin-bottom:1.25rem;line-height:1.55;">
-      Choose your NationBuilder nation below. We'll look up your ID automatically.
-    </p>
-    <div class="mb-3">
-      <label class="form-label">Nation <span>*</span></label>
-      <div class="position-relative">
-        <input type="text" class="form-control" id="nation_search"
-               placeholder="Type a town, area, or nation name…" autocomplete="off" />
-        <div id="nation_results" class="dropdown-box" style="display:none;"></div>
-      </div>
-      <input type="hidden" id="nation_slug" />
-      <div id="nation_selected" style="display:none;">
-        <div class="slug-badge">
-          <svg width="11" height="11" viewBox="0 0 20 20" fill="currentColor">
-            <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/>
-          </svg>
-          <span id="nation_slug_display"></span>
+    <!-- New nation / edit-ID flow. Shown by default for a brand-new user;
+         reachable any time afterward via the buttons above. -->
+    <div id="new-nation-flow" style="display:{{ 'none' if has_nations else 'block' }};">
+      <div class="section-label" id="new-nation-label">Select Your Nation</div>
+      <p style="font-size:.84rem;color:#6b7280;margin-bottom:1.25rem;line-height:1.55;" id="new-nation-copy">
+        Choose your NationBuilder nation below. We'll look up your ID automatically.
+      </p>
+      <div class="mb-3">
+        <label class="form-label">Nation <span>*</span></label>
+        <div class="position-relative">
+          <input type="text" class="form-control" id="nation_search"
+                 placeholder="Type a town, area, or nation name…" autocomplete="off" />
+          <div id="nation_results" class="dropdown-box" style="display:none;"></div>
+        </div>
+        <input type="hidden" id="nation_slug" />
+        <div id="nation_selected" style="display:none;">
+          <div class="slug-badge">
+            <svg width="11" height="11" viewBox="0 0 20 20" fill="currentColor">
+              <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/>
+            </svg>
+            <span id="nation_slug_display"></span>
+          </div>
         </div>
       </div>
+      <div class="lookup-box" id="lookup-status"></div>
+      <div class="mb-4" id="nb-id-row" style="display:none;">
+        <label class="form-label">Your NationBuilder ID</label>
+        <input type="text" class="form-control" id="nb_id_input" placeholder="Enter your NB ID" />
+        <div class="form-hint" id="nb-id-help"></div>
+      </div>
+      <button class="btn-continue" id="continue-btn" disabled onclick="saveAndContinue()">
+        Continue →
+      </button>
+      {% if has_nations %}
+      <button type="button" class="link-btn" onclick="showReturningBlock()">← Back to my nations</button>
+      {% endif %}
     </div>
-    <div class="lookup-box" id="lookup-status"></div>
-    <div class="mb-4" id="nb-id-row" style="display:none;">
-      <label class="form-label">Your NationBuilder ID</label>
-      <input type="text" class="form-control" id="nb_id_input" placeholder="Enter your NB ID" />
-      <div class="form-hint" id="nb-id-help"></div>
-    </div>
-    <button class="btn-continue" id="continue-btn" disabled onclick="saveAndContinue()">
-      Continue →
-    </button>
-    {% endif %}
 
     <a href="/logout" class="signout">Sign out</a>
   </div>
 
   <script>
-    {% if user_nations %}
     async function selectNation(btn) {
       document.querySelectorAll('.nation-btn').forEach(b => b.classList.remove('selected'));
       btn.classList.add('selected');
@@ -239,7 +267,57 @@
       }
     }
 
-    {% else %}
+    // ── Toggling between "my saved nations" and the search/edit flow ─────
+    function showNewNationFlow() {
+      document.getElementById('returning-block').style.display = 'none';
+      document.getElementById('new-nation-flow').style.display = 'block';
+    }
+    function showReturningBlock() {
+      document.getElementById('new-nation-flow').style.display = 'none';
+      document.getElementById('returning-block').style.display = 'block';
+    }
+    function resetNewNationFields() {
+      nationSlugInput.value = '';
+      nationSearch.value = '';
+      selectedNationName = '';
+      nationSelected.style.display = 'none';
+      nbIdRow.style.display = 'none';
+      nbIdInput.value = '';
+      lookupStatus.innerHTML = '';
+      continueBtn.disabled = true;
+      continueBtn.textContent = 'Continue →';
+      document.getElementById('new-nation-label').textContent = 'Select Your Nation';
+      document.getElementById('new-nation-copy').textContent =
+        "Choose your NationBuilder nation below. We'll look up your ID automatically.";
+    }
+    // "+ Use a different nation" — always starts from a clean slate.
+    function addNewNation() {
+      resetNewNationFields();
+      showNewNationFlow();
+    }
+    // "Edit ID" on an existing saved nation — skips search, goes straight to
+    // the ID field with the current (possibly wrong) value ready to fix.
+    function editNation(event, btn) {
+      event.stopPropagation();
+      const slug = btn.dataset.slug;
+      const name = btn.dataset.name;
+      const nbId = btn.dataset.nbid || '';
+      showNewNationFlow();
+      nationSlugInput.value = slug;
+      nationSearch.value = name;
+      selectedNationName = name;
+      nationSlugDisplay.textContent = slug;
+      nationSelected.style.display = 'block';
+      nbIdRow.style.display = 'block';
+      nbIdInput.value = nbId;
+      nbIdHelp.innerHTML = 'Editing your saved ID — update and continue';
+      continueBtn.disabled = !nbId.trim();
+      document.getElementById('new-nation-label').textContent = 'Edit NationBuilder ID';
+      document.getElementById('new-nation-copy').textContent =
+        `Update your NationBuilder ID for ${name} (${slug}).`;
+      nbIdInput.focus();
+    }
+
     const nationSearch = document.getElementById('nation_search');
     const nationResults = document.getElementById('nation_results');
     const nationSlugInput = document.getElementById('nation_slug');
@@ -253,6 +331,11 @@
     let selectedNationName = '';
     let nationTimer;
 
+    {% if not has_nations %}
+    // Pre-fill from an in-progress (not-yet-completed) setup attempt in this
+    // session. Only relevant for a brand-new user landing on this flow by
+    // default - addNewNation()/editNation() populate these fields explicitly
+    // for a returning user, so this would only ever show stale data there.
     const savedSlug = "{{ default_nation_slug }}";
     const savedName = "{{ default_nation_name }}";
     const savedNbId = "{{ author_nb_id }}";
@@ -269,6 +352,7 @@
         continueBtn.disabled = false;
       }
     }
+    {% endif %}
 
     nationSearch.addEventListener('input', () => {
       clearTimeout(nationTimer);
@@ -372,7 +456,6 @@
         alert('Error saving: ' + err.message);
       }
     }
-    {% endif %}
   </script>
 </body>
 </html>
