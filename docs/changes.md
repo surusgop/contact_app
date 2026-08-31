@@ -148,17 +148,63 @@ Fixed the immediate data problem by writing a corrected `nation_setup` audit-log
 
 Verified via `app.test_client()`: a returning user's render shows the picker visible / search flow hidden / Back link present; a brand-new user's render shows the opposite, with no Back link (nothing to go back to). Script braces/parens balanced, same as the `combined.html` check.
 
+### 5.1 Manual QA checklist — results so far
+
+Run by hand in a real browser against `affordablenaperville`, once the Setup fix unblocked it. A test CSV (`tag_test_import.csv`, 3 real signups — Kerry, Jonathan, and Victoria Mulligan — each with their own `Tag` column value) was generated to drive the file-upload cases.
+
+| Checklist item | Result |
+| --- | --- |
+| Manual entry, single tag | ✅ (this is what surfaced the `author_nb_id` bug in §5 above; passed once fixed) |
+| Paste Notes → AI extraction | ✅ confirmed working |
+| File upload: per-row tag (AI-detected `Tag` column) + whole-list tag, both at once | ✅ **3 imported, 0 failed, 6 tags applied, 0 tag failures** — exactly 3 people × 2 tags (their own + the shared one), confirming the "apply both" design end-to-end on real signups |
+| Re-tagging someone who already has a tag | ✅ correctly reported as "Already Tagged," not a failure — re-applying `zz-test-volunteer` to Kerry Mulligan (who already had it from the file-upload test) |
+| Manual entry, no tag | Not explicitly tested, low risk |
+| Editing a tag in the preview table before import | Not yet tested |
+
+Everything tested so far has passed on the first try.
+
+---
+
+## 6. Dual persistence: contacts now also logged to Databricks
+
+Follow-on request after the tagging QA above: every successfully-submitted contact should be recorded in Databricks as well as NationBuilder — a real, structured, append-only table, not just a JSON blob in the existing audit log.
+
+**Table:** `universal.contacts.contact_app_logs` — created empty by you, schema added via `ALTER TABLE ... ADD COLUMNS`, confirmed via `DESCRIBE TABLE`:
+
+| Column | Type |
+| --- | --- |
+| `event_time` | `TIMESTAMP` |
+| `nation` | `STRING` |
+| `logged_in_as` | `STRING` — the authenticated app user, distinct from the NationBuilder `author_id` (the "logged on behalf of" case can differ from who's actually signed in) |
+| `signup_id` | `STRING` — kept as a string deliberately: NationBuilder's own API treats all resource IDs as strings (JSON:API), and nothing in this app ever does arithmetic on them |
+| `author_id` | `STRING`, same reasoning |
+| `contact_method` | `STRING` |
+| `contact_status` | `STRING` |
+| `contact_date` | `STRING` rather than `DATE` — deliberate: `_spell_date`'s own fallback is "return the raw string as-is if it doesn't parse," so a stricter `DATE` column would either reject or silently null out exactly the malformed inputs this log most needs to capture faithfully |
+| `content` | `STRING` — the *final* content actually sent to NationBuilder (date-contacted line + notes + import stamp), not just the raw notes |
+| `tag` | `STRING` — the tag(s) associated with this row, comma-joined if more than one |
+
+**Behavior, as specified:** append-only (one `INSERT`, never an `UPDATE`), one row per contact, **only for rows where the NationBuilder contact POST actually succeeded** — a failed submission writes nothing here (same "only append what succeeded" rule you gave). Only wired into `/bulk/import` — the sole route real traffic uses; the legacy, currently-unreachable `/import` route was left alone.
+
+**Implementation:** new `log_contact_to_databricks()` in [app.py](../app.py), right after `log_action()` and following its exact pattern — fire-and-forget via a daemon thread, so a Databricks hiccup can never break a real import; called once per row, immediately after `results["success"] += 1`.
+
+**Verified live**, end-to-end, via `/bulk/import` against `suruszoo`: the resulting Databricks row was queried back and every column matched exactly — including `content` holding the *final* string actually sent to NationBuilder (with the date-contacted prefix and import stamp), not just the raw notes. This test also surfaced an unrelated, useful fact: `suruszoo`'s test data had been reset since earlier in this conversation (the old test signups, e.g. Jadwiga Lazarek, no longer exist) — it's now populated with real Surus team accounts instead, including a real signup for `chris@surusenterprises.com` (`2941673`), which is what this test used.
+
 ---
 
 ## Current git state
 
-**Update:** everything through the Phase 1 tagging work (`README.md`, `app.py`, `templates/combined.html`) was committed and pushed to `main` directly by you via VS Code (`d152fcb "tags field"`), and confirmed live on Railway. The Setup escape-hatch fix in §5 above is newer than that commit and not yet pushed:
+| Commit | Contents |
+| --- | --- |
+| `d152fcb` "tags field" | Phase 1 tagging work: `README.md`, `app.py`, `templates/combined.html` |
+| `d96a96d` "fixed sign in" | The Setup escape-hatch fix from §5 above: `templates/setup.html` |
+
+Both committed and pushed directly by you via VS Code; `d152fcb` was confirmed live on Railway by screenshot before `d96a96d` went up.
+
+**Not yet committed:** `app.py` (§6's Databricks dual-logging addition) and this file. Same pattern as before — pick up via VS Code whenever you're ready.
 
 | Status | Paths |
 | --- | --- |
-| Modified, uncommitted | `templates/setup.html` (§5 fix), `docs/changes.md` (this file) |
-| Committed & pushed (`d152fcb`) | `README.md`, `app.py`, `templates/combined.html` |
-| Untracked (new) | `docs/` minus this file's already-committed state — `walkthrough.md`, `goal.md`, `plans.md`, `nationbuilder-guide.md`, `databricks-auth-guide.md`, and the raw pasted source docs `databricks.md`/`nationbuilder.md` |
 | Not tracked, not in git (by design) | `.env` — contains live secrets, correctly gitignored |
 | Deleted | `token.txt` |
 

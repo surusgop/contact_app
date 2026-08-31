@@ -860,6 +860,46 @@ def log_action(action: str, user_email: str, user_name: str,
     threading.Thread(target=_write, daemon=True).start()
 
 
+def log_contact_to_databricks(nation_slug: str, user_email: str, row: dict,
+                               attributes: dict, relationships: dict):
+    """Append one row to universal.contacts.contact_app_logs for a NationBuilder
+    contact this app successfully created. Append-only, one row per contact -
+    never called for failed submissions. Fire-and-forget like log_action; a
+    failure here must never break the actual import."""
+    def _write():
+        if not WAREHOUSE_ID:
+            return
+        try:
+            get_db().statement_execution.execute_statement(
+                warehouse_id=WAREHOUSE_ID,
+                statement="""
+                    INSERT INTO universal.contacts.contact_app_logs
+                        (event_time, nation, logged_in_as, signup_id, author_id,
+                         contact_method, contact_status, contact_date, content, tag)
+                    VALUES
+                        (current_timestamp(), :nation, :logged_in_as, :signup_id, :author_id,
+                         :contact_method, :contact_status, :contact_date, :content, :tag)
+                """,
+                parameters=[
+                    StatementParameterListItem(name="nation", value=nation_slug or ""),
+                    StatementParameterListItem(name="logged_in_as", value=user_email or ""),
+                    StatementParameterListItem(name="signup_id",
+                        value=((relationships.get("signup") or {}).get("data") or {}).get("id", "")),
+                    StatementParameterListItem(name="author_id",
+                        value=((relationships.get("author") or {}).get("data") or {}).get("id", "")),
+                    StatementParameterListItem(name="contact_method", value=attributes.get("contact_method", "")),
+                    StatementParameterListItem(name="contact_status", value=attributes.get("contact_status", "")),
+                    StatementParameterListItem(name="contact_date", value=str(row.get("contact_date", "") or "")),
+                    StatementParameterListItem(name="content", value=attributes.get("content", "")),
+                    StatementParameterListItem(name="tag", value=str(row.get("tag", "") or "")),
+                ],
+                wait_timeout="15s",
+            )
+        except Exception as e:
+            print(f"contact_app_logs (contacts) write failed (non-critical): {e}")
+    threading.Thread(target=_write, daemon=True).start()
+
+
 ensure_log_table()
 
 
@@ -1778,6 +1818,7 @@ def bulk_import():
                 "signup_id": row.get("signup_id", ""),
                 "name": name,
             })
+            log_contact_to_databricks(nation_slug, current_user.email, row, attributes, relationships)
         except requests.HTTPError as e:
             results["failed"] += 1
             try:
