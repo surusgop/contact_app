@@ -13,7 +13,7 @@ import requests
 import urllib3
 import pandas as pd
 from datetime import datetime, timezone, timedelta
-from flask import Flask, render_template, request, jsonify, redirect, url_for, session
+from flask import Flask, render_template, request, jsonify, redirect, url_for, session, Response
 from flask_login import LoginManager, UserMixin, login_user, logout_user, login_required, current_user
 from authlib.integrations.flask_client import OAuth
 from dotenv import load_dotenv
@@ -1643,6 +1643,27 @@ Return ONLY valid JSON with no markdown:
 @login_required
 def bulk():
     return redirect("/")
+
+
+@app.route("/sample-contacts.csv")
+@login_required
+def sample_contacts_csv():
+    """A downloadable example of the columns the AI column-mapper recognizes,
+    linked from the file-upload section so people know what to feed it."""
+    csv_text = (
+        "Name,Contact Date,Contact Method,Contact Status,Notes,Tag\n"
+        "John Smith,6/17/2026,phone call,answered,"
+        "\"Talked about the June event, he's interested in volunteering\",Volunteer\n"
+        "Jane Doe,6/18/2026,door knock,no answer,"
+        "\"No one home, left a flyer\",\n"
+        "Bob Johnson III,6/19/2026,face to face,meaningful interaction,"
+        "\"Great conversation about local issues\",\"Event Attendee, VIP\"\n"
+    )
+    return Response(
+        csv_text,
+        mimetype="text/csv",
+        headers={"Content-Disposition": "attachment; filename=sample_contacts.csv"},
+    )
 
 
 @app.route("/bulk/upload", methods=["POST"])
