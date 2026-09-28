@@ -73,6 +73,10 @@ APP_URL=http://localhost:5000        # must match your Google redirect URI host
 GOOGLE_CLIENT_ID=xxxxx.apps.googleusercontent.com
 GOOGLE_CLIENT_SECRET=xxxxx
 
+# Who may sign in (comma-separated, no "@")
+ALLOWED_EMAIL_DOMAIN=surusenterprises.com,americanstewardship.org
+ALLOWED_EMAILS=                      # optional one-off addresses
+
 # Databricks
 DATABRICKS_HOST=https://your-workspace.cloud.databricks.com
 DATABRICKS_TOKEN=dapi...
@@ -89,6 +93,28 @@ http://localhost:5000/auth/callback
 ```
 
 For production, use your real host: `https://your-app.example.com/auth/callback`, and set `APP_URL` to match. The callback path is always `APP_URL + /auth/callback`.
+
+### Who may sign in
+
+`ALLOWED_EMAIL_DOMAIN` is a comma-separated list of domains, and `ALLOWED_EMAILS`
+admits individual addresses that aren't on any of them:
+
+```
+ALLOWED_EMAIL_DOMAIN=surusenterprises.com,americanstewardship.org
+ALLOWED_EMAILS=contractor@gmail.com
+```
+
+A user is admitted if they match **either** list; comparison is case-insensitive.
+Adding a domain is an environment-variable change, not a code change — the same
+semantics as the shared auth module our other Railway apps use.
+
+The sign-in page only pre-selects a Google Workspace domain (`hd`) when exactly
+one domain is allowed and `ALLOWED_EMAILS` is empty. It has to: with two domains,
+`hd` would make Google turn the second one away at its own screen, before our
+callback could admit them.
+
+> **Leaving both variables empty lets anyone with a Google account in.** Always
+> set at least `ALLOWED_EMAIL_DOMAIN` in every deployment.
 
 > **Note:** Every env var is optional at import time — the app boots without them. But with no `DATABRICKS_WAREHOUSE_ID` the nation directory and all person lookups come back empty, and with no Google credentials login fails. Set them all.
 
@@ -134,6 +160,7 @@ Deployment checklist:
 
 - Set every variable from the `.env` above as a real environment variable
 - Set `APP_URL` to the public HTTPS URL and add `<APP_URL>/auth/callback` to the Google client
+- Set `ALLOWED_EMAIL_DOMAIN` — without it, any Google account can sign in
 - Use a strong, stable `FLASK_SECRET_KEY` — changing it signs everyone out
 - Keep `--timeout` generous. Imports POST to NationBuilder one row at a time, so a few hundred rows can take a while.
 

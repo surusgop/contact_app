@@ -45,6 +45,38 @@ google = oauth.register(
     client_kwargs={"scope": "openid email profile"},
 )
 
+
+# --- Who may sign in --------------------------------------------------------
+# ALLOWED_EMAIL_DOMAIN   comma-separated domains, e.g. "a.com,b.org"
+# ALLOWED_EMAILS         comma-separated individual addresses (contractors, Gmail)
+# Same semantics as the shared auth module used by our other Railway apps, so
+# adding a domain is an environment-variable change, not a code change.
+def _csv_env(name: str, strip_at: bool = False) -> list:
+    vals = [v.strip().lower() for v in os.getenv(name, "").split(",") if v.strip()]
+    return [v.lstrip("@") for v in vals] if strip_at else vals
+
+ALLOWED_DOMAINS = _csv_env("ALLOWED_EMAIL_DOMAIN", strip_at=True)
+ALLOWED_EMAILS  = _csv_env("ALLOWED_EMAILS")
+
+
+def _is_email_allowed(email: str) -> bool:
+    """Allow if (no restriction configured) OR (on an allowed domain) OR (on
+    the individual allowlist). Both lists empty lets any Google account in."""
+    e = (email or "").strip().lower()
+    if not e:
+        return False
+    if not ALLOWED_DOMAINS and not ALLOWED_EMAILS:
+        return True
+    if any(e.endswith("@" + d) for d in ALLOWED_DOMAINS):
+        return True
+    return e in ALLOWED_EMAILS
+
+
+def _access_denied_message() -> str:
+    if ALLOWED_DOMAINS:
+        return "Access is restricted to " + " and ".join(ALLOWED_DOMAINS) + " accounts."
+    return "That account is not authorized for this app."
+
 class User(UserMixin):
     def __init__(self, id, email, name, picture):
         self.id = id
@@ -1900,7 +1932,13 @@ def bulk_import():
 def login():
     app_url = os.getenv("APP_URL", "http://localhost:5000")
     redirect_uri = app_url + "/auth/callback"
-    return google.authorize_redirect(redirect_uri)
+    # Pre-select the Google Workspace domain only when exactly one is allowed.
+    # With two domains, "hd" would make Google block the second one at its own
+    # screen, before our callback ever got the chance to admit them.
+    extra = {}
+    if len(ALLOWED_DOMAINS) == 1 and not ALLOWED_EMAILS:
+        extra["hd"] = ALLOWED_DOMAINS[0]
+    return google.authorize_redirect(redirect_uri, **extra)
 
 @app.route("/auth/callback")
 def auth_callback():
@@ -1908,9 +1946,9 @@ def auth_callback():
     userinfo = token.get("userinfo") or google.userinfo()
     if not userinfo:
         return render_template("login.html", error="Could not retrieve account info from Google.")
-    email = userinfo.get("email", "")
-    if not email.endswith("@surusenterprises.com"):
-        return render_template("login.html", error="Access restricted to Surus Enterprises accounts only.")
+    email = (userinfo.get("email") or "").strip()
+    if not _is_email_allowed(email):
+        return render_template("login.html", error=_access_denied_message())
     user = User(
         id=email,
         email=email,
