@@ -67,6 +67,7 @@ Create a `.env` file in the project root:
 ```bash
 # Flask
 FLASK_SECRET_KEY=some-long-random-string
+SESSION_SECRET=another-long-random-string   # signs the sign-in cookie; required
 APP_URL=http://localhost:5000        # must match your Google redirect URI host
 
 # Google OAuth
@@ -161,7 +162,8 @@ Deployment checklist:
 - Set every variable from the `.env` above as a real environment variable
 - Set `APP_URL` to the public HTTPS URL and add `<APP_URL>/auth/callback` to the Google client
 - Set `ALLOWED_EMAIL_DOMAIN` — without it, any Google account can sign in
-- Use a strong, stable `FLASK_SECRET_KEY` — changing it signs everyone out
+- Use a strong, stable `FLASK_SECRET_KEY` and `SESSION_SECRET` — changing either signs everyone out, and `SESSION_SECRET` must be unique to this app
+- The build needs `GH_PAT`, a read-only GitHub token, to install the private `surus-auth` package — see the `Dockerfile`
 - Keep `--timeout` generous. Imports POST to NationBuilder one row at a time, so a few hundred rows can take a while.
 
 ---
@@ -299,7 +301,7 @@ The AI extraction needs `OPENROUTER_API_KEY`. Images and freeform text won't wor
 Rows POST sequentially. Raise gunicorn's `--timeout`, or split the work into a few smaller imports.
 
 **Everyone got signed out**
-`FLASK_SECRET_KEY` changed (or defaulted to `dev-secret-change-me` on a fresh boot). Set it explicitly and keep it stable. Note also that a server restart clears the in-memory user cache — users are bounced through Google again, which is usually invisible if their Google session is live.
+`SESSION_SECRET` changed — it signs the sign-in cookie, so a new value invalidates every existing one. (`FLASK_SECRET_KEY` only covers the nation stored in the Flask session; changing it loses the nation, not the login.) Set both explicitly and keep them stable.
 
 ---
 
@@ -314,7 +316,6 @@ contact_app/
 └── templates/
     ├── combined.html            # The main import page (all three input modes + queue)
     ├── setup.html               # Nation + author ID selection
-    ├── login.html               # Google sign-in
     ├── index.html               # Legacy: single-contact form (no longer routed)
     └── bulk.html                # Legacy: original 3-step bulk flow (no longer routed)
 ```
