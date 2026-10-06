@@ -14,8 +14,8 @@ import urllib3
 import pandas as pd
 from datetime import datetime, timezone, timedelta
 from flask import Flask, render_template, request, jsonify, redirect, url_for, session, Response
-from flask_login import LoginManager, UserMixin, login_user, logout_user, login_required, current_user
-from authlib.integrations.flask_client import OAuth
+from werkzeug.local import LocalProxy
+from surus_auth.flask import get_current_user, register_auth
 from dotenv import load_dotenv
 from databricks.sdk import WorkspaceClient
 from databricks.sdk.service.sql import StatementParameterListItem, StatementState
@@ -33,30 +33,57 @@ app = Flask(__name__)
 app.secret_key = os.getenv("FLASK_SECRET_KEY", "dev-secret-change-me")
 app.config["PERMANENT_SESSION_LIFETIME"] = timedelta(days=90)
 
-login_manager = LoginManager(app)
-login_manager.login_view = "login"
+# --- Shared Google sign-in --------------------------------------------------
+# surus-auth registers /auth/login, /auth/callback, /auth/logout and a
+# before_request guard that gates every other path, so individual routes no
+# longer carry @login_required. Who may sign in is still ALLOWED_EMAIL_DOMAIN
+# and ALLOWED_EMAILS in the environment -- the same variables, read by the
+# package now instead of by the copy that used to live here.
+def _on_login(user: dict) -> None:
+    """Post-login bookkeeping that used to sit in our own /auth/callback.
 
-oauth = OAuth(app)
-google = oauth.register(
-    name="google",
-    client_id=os.getenv("GOOGLE_CLIENT_ID"),
-    client_secret=os.getenv("GOOGLE_CLIENT_SECRET"),
-    server_metadata_url="https://accounts.google.com/.well-known/openid-configuration",
-    client_kwargs={"scope": "openid email profile"},
-)
+    Runs inside the callback request, so these session writes ride out on the
+    same response. surus-auth swallows anything raised here, by design: a
+    logging or Databricks hiccup must not be able to block a sign-in.
+    """
+    log_action("login", user["email"], user["name"])
+    session.permanent = True
+    nations = get_user_nations(user["email"])
+    if len(nations) == 1:
+        session["default_nation_slug"] = nations[0]["slug"]
+        session["default_nation_name"] = nations[0]["name"]
+        session["author_nb_id"] = nations[0]["author_nb_id"]
+    # With none or several, index() bounces them to /setup to pick one.
 
-class User(UserMixin):
-    def __init__(self, id, email, name, picture):
-        self.id = id
-        self.email = email
-        self.name = name
-        self.picture = picture
 
-_users = {}
+register_auth(app, cookie_name="contact_app_session", on_login=_on_login)
 
-@login_manager.user_loader
-def load_user(user_id):
-    return _users.get(user_id)
+
+class _User:
+    """Attribute access over the surus-auth session dict.
+
+    Lets the existing current_user.email / .name / .picture call sites, and
+    the same names in the templates, keep working untouched. Missing keys
+    read as "" so a template never blows up on a half-filled profile.
+    """
+
+    def __init__(self, data):
+        self._data = data or {}
+
+    def __getattr__(self, name):
+        return self._data.get(name, "")
+
+    def __bool__(self):
+        return bool(self._data.get("email"))
+
+
+current_user = LocalProxy(lambda: _User(get_current_user()))
+
+
+@app.context_processor
+def _inject_current_user():
+    return {"current_user": current_user}
+
 
 _db = None
 def get_db():
@@ -947,7 +974,6 @@ def get_user_nations(email: str) -> list:
 
 
 @app.route("/search-nation")
-@login_required
 def search_nation():
     term = request.args.get("term", "").strip().lower()
     if not term:
@@ -960,7 +986,6 @@ def search_nation():
 
 
 @app.route("/get-author-id")
-@login_required
 def get_author_id():
     nation_slug = request.args.get("nation_slug", "").strip()
     if not nation_slug or not WAREHOUSE_ID:
@@ -994,7 +1019,6 @@ def get_author_id():
 
 
 @app.route("/setup", methods=["GET", "POST"])
-@login_required
 def setup():
     if request.method == "POST":
         data = request.get_json() or {}
@@ -1016,7 +1040,6 @@ def setup():
 
 
 @app.route("/search-by-name")
-@login_required
 def search_by_name():
     first = request.args.get("first", "").strip()
     last = request.args.get("last", "").strip()
@@ -1098,7 +1121,6 @@ def search_by_name():
 
 
 @app.route("/search-volunteer")
-@login_required
 def search_volunteer():
     """Prefix autocomplete for volunteer names — used by 'log on behalf of'."""
     q = request.args.get("q", "").strip().lower()
@@ -1137,7 +1159,6 @@ def search_volunteer():
 
 
 @app.route("/search-signup")
-@login_required
 def search_signup():
     name = request.args.get("name", "").strip()
     nation_slug = request.args.get("nation_slug", "").strip()
@@ -1598,7 +1619,6 @@ Return ONLY JSON (no markdown):
 
 
 @app.route("/infer-contact-type", methods=["POST"])
-@login_required
 def infer_contact_type():
     text = (request.get_json() or {}).get("text", "").strip()
     if not text:
@@ -1640,13 +1660,11 @@ Return ONLY valid JSON with no markdown:
 
 
 @app.route("/bulk")
-@login_required
 def bulk():
     return redirect("/")
 
 
 @app.route("/sample-contacts.csv")
-@login_required
 def sample_contacts_csv():
     """A downloadable example of the columns the AI column-mapper recognizes,
     linked from the file-upload section so people know what to feed it."""
@@ -1667,7 +1685,6 @@ def sample_contacts_csv():
 
 
 @app.route("/bulk/upload", methods=["POST"])
-@login_required
 def bulk_upload():
     if "file" not in request.files or request.files["file"].filename == "":
         return jsonify({"success": False, "error": "No file uploaded"}), 400
@@ -1691,7 +1708,6 @@ def bulk_upload():
 
 
 @app.route("/bulk/paste", methods=["POST"])
-@login_required
 def bulk_paste():
     data = request.get_json()
     text = (data.get("text") or "").strip()
@@ -1755,7 +1771,6 @@ Text:
 
 
 @app.route("/bulk/import", methods=["POST"])
-@login_required
 def bulk_import():
     data = request.get_json()
     nation_slug = data.get("nation_slug", "").strip()
@@ -1896,49 +1911,7 @@ def bulk_import():
     return jsonify({"success": True, "results": results})
 
 
-@app.route("/login")
-def login():
-    app_url = os.getenv("APP_URL", "http://localhost:5000")
-    redirect_uri = app_url + "/auth/callback"
-    return google.authorize_redirect(redirect_uri)
-
-@app.route("/auth/callback")
-def auth_callback():
-    token = google.authorize_access_token()
-    userinfo = token.get("userinfo") or google.userinfo()
-    if not userinfo:
-        return render_template("login.html", error="Could not retrieve account info from Google.")
-    email = userinfo.get("email", "")
-    if not email.endswith("@surusenterprises.com"):
-        return render_template("login.html", error="Access restricted to Surus Enterprises accounts only.")
-    user = User(
-        id=email,
-        email=email,
-        name=userinfo.get("name", email),
-        picture=userinfo.get("picture", ""),
-    )
-    _users[email] = user
-    login_user(user, remember=True)
-    session.permanent = True
-    log_action("login", email, userinfo.get("name", email))
-    nations = get_user_nations(email)
-    if len(nations) == 1:
-        session["default_nation_slug"] = nations[0]["slug"]
-        session["default_nation_name"] = nations[0]["name"]
-        session["author_nb_id"] = nations[0]["author_nb_id"]
-        return redirect("/")
-    else:
-        return redirect("/setup")
-
-@app.route("/logout")
-@login_required
-def logout():
-    logout_user()
-    return redirect("/login")
-
-
 @app.route("/")
-@login_required
 def index():
     if not session.get("default_nation_slug"):
         return redirect("/setup")
@@ -1951,7 +1924,6 @@ def index():
 
 
 @app.route("/import", methods=["POST"])
-@login_required
 def import_contact():
     form = request.form
     nation_slug = form.get("nation_slug", "").strip()
