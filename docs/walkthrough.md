@@ -24,7 +24,6 @@ A developer's map of this repo: what every file does, what every function does, 
   - [Import routes](#import-routes)
 - [templates/combined.html](#templatescombinedhtml)
 - [templates/setup.html](#templatessetuphtml)
-- [templates/login.html](#templatesloginhtml)
 - [templates/index.html (legacy)](#templatesindexhtml-legacy)
 - [templates/bulk.html (legacy)](#templatesbulkhtml-legacy)
 - [nationbuilder_contacts.py](#nationbuilder_contactspy)
@@ -59,7 +58,7 @@ The browser holds all staged state in memory (`allRows` and friends). Nothing is
 
 | Service | Used for | Where |
 | --- | --- | --- |
-| Google OAuth (authlib) | Sign-in, domain restriction | `login`, `auth_callback` |
+| Google OAuth (via `surus-auth`) | Sign-in, domain restriction, session cookie | `register_auth(app, ...)` |
 | Databricks SQL warehouse | Nation directory, `signups` lookups, audit log | `get_db()`, every `execute_statement` call |
 | Databricks secrets | `api / surus_server_nb_secret` | `get_nb_token` |
 | `server.surusenterprises.com` | Mints per-nation NationBuilder access tokens | `get_nb_token` |
@@ -121,11 +120,10 @@ Three rules worth internalizing:
 - **HEIC support** — `register_heif_opener()` inside a `try/except ImportError`, so Pillow can open iPhone photos when `pillow-heif` is installed and degrade quietly when it isn't.
 - **`_send_no_verify` (24–28)** — monkeypatches `requests.Session.send` to force `verify=False` on *every* outbound request, plus `urllib3.disable_warnings`. This exists because a corporate proxy intercepts HTTPS. It's global and unconditional; be aware that nothing in this process verifies TLS.
 - **Flask app (32–34)** — `secret_key` from `FLASK_SECRET_KEY` (dev fallback `"dev-secret-change-me"`), and a 90-day `PERMANENT_SESSION_LIFETIME`.
-- **`login_manager` (36–37)** — `login_view = "login"`, so `@login_required` redirects to `/login`.
-- **`oauth` / `google` (39–46)** — authlib client using Google's OIDC discovery document, scope `openid email profile`.
-- **`class User(UserMixin)` (48–53)** — plain object holding `id` (the email), `email`, `name`, `picture`.
-- **`_users` (55)** — an in-memory `dict` acting as the user store. **Lost on restart** (see [Gotchas](#gotchas-and-known-quirks)).
-- **`load_user(user_id)` (57–59)** — flask-login's loader; a `_users.get`.
+- **`register_auth(app, ...)`** — the whole sign-in integration, from the shared `surus-auth` package. It adds `/auth/login`, `/auth/callback`, `/auth/logout` and a `before_request` guard that gates **every** path except those and `/healthz`. That guard is why no route in this file carries a decorator any more. Who may sign in is `ALLOWED_EMAIL_DOMAIN` / `ALLOWED_EMAILS` in the environment, read by the package.
+- **`_on_login(user)`** — the post-login bookkeeping that used to live in our own callback: the `login` audit entry, `session.permanent`, and seeding the nation into the session when the user has exactly one. `surus-auth` swallows anything this raises, deliberately — a Databricks hiccup must not be able to block a sign-in.
+- **`cookie_name="contact_app_session"`** — per-app, so a cookie from another Surus app can't authenticate here. The cookie is signed with `SESSION_SECRET` and carries the profile itself, so there is no server-side user store to lose.
+- **`_User` / `current_user`** — a `LocalProxy` wrapping the session dict in attribute access, so the `current_user.email` / `.name` call sites and the templates read exactly as they did under flask-login. A context processor injects the same name into Jinja.
 - **`get_db()` (61–69)** — lazily constructs and caches one `WorkspaceClient` from `DATABRICKS_HOST` / `DATABRICKS_TOKEN`. Every Databricks call goes through this.
 
 ### Vocabularies (lines 73–83)
@@ -204,11 +202,9 @@ Prefix autocomplete (`LIKE 'q%'` on first or last name), limit 12. Backs the "lo
 
 ### Setup and auth routes
 
-**`GET /login` (1878–1883)** — redirects to Google, with `redirect_uri = APP_URL + "/auth/callback"`.
+**`/auth/login`, `/auth/callback`, `/auth/logout`** — all three come from `surus-auth`; this file no longer defines them. An unauthenticated request to any gated path is redirected to `/auth/login?next=<path>`, which means **there is no branded sign-in page any more** — users land straight on Google's account picker and come back to where they were headed.
 
-**`GET /auth/callback` (1884–1911)** — exchanges the code, pulls `userinfo`, and **rejects any email not ending in `@surusenterprises.com`** by re-rendering `login.html` with an error. On success: builds a `User`, stores it in `_users`, `login_user(remember=True)`, `session.permanent = True`, logs the login, then calls `get_user_nations`. Exactly one known nation → seed the session and go to `/`; zero or several → go to `/setup`.
-
-**`GET /logout` (1912–1917)** — `logout_user()` then redirect to `/login`.
+The nation seeding that used to happen in our callback now happens in `_on_login`, with the same rule: exactly one known nation → seed the session; zero or several → `index` bounces them to `/setup`.
 
 **`GET|POST /setup` (996–1017)** — `POST` writes `default_nation_slug`, `default_nation_name`, and `author_nb_id` into the session and emits a `nation_setup` log entry (which is what makes the nation remembered next time). `GET` renders `setup.html` with `get_user_nations()` plus current session values. Reachable not just at login but at any time via the "+ Use a different nation" / "Edit ID" links now built into `setup.html` — see [templates/setup.html](#templatessetuphtml).
 
@@ -428,14 +424,6 @@ Verified via `app.test_client()`: a returning user's render shows the picker vis
 
 ---
 
-## templates/login.html
-
-135 lines, dark-themed (`#0d1823` with gold/red accents — the app's original palette). Static apart from `{% if error %}`, which renders the domain-restriction or userinfo-failure message from `auth_callback`. The Sign In button is a plain link to `/login` with an inline Google SVG. No JS.
-
-There's a vestigial empty `{% if error %}{% endif %}` inside the `<style>` block (lines 67–68) — harmless leftover.
-
----
-
 ## templates/index.html (legacy)
 
 522 lines. The **original single-contact form**, no longer rendered by any route — `/` serves `combined.html`. It still works if you re-point a route at it, and the `/import` endpoint it posts to is live.
@@ -477,9 +465,10 @@ It's the minimal reproduction of the token-brokering flow — useful for verifyi
 
 | Method | Path | Handler | Auth | Purpose |
 | --- | --- | --- | --- | --- |
-| GET | `/login` | `login` | — | Redirect to Google |
-| GET | `/auth/callback` | `auth_callback` | — | OAuth callback, domain gate, session seeding |
-| GET | `/logout` | `logout` | ✓ | Sign out |
+| GET | `/healthz` | `surus-auth` | — | Platform healthcheck, deliberately ungated |
+| GET | `/auth/login` | `surus-auth` | — | Redirect to Google |
+| GET | `/auth/callback` | `surus-auth` | — | OAuth callback, domain gate, session seeding |
+| GET | `/auth/logout` | `surus-auth` | — | Clear the cookie |
 | GET | `/` | `index` | ✓ | Main page (or redirect to `/setup`) |
 | GET/POST | `/setup` | `setup` | ✓ | Choose nation + author ID |
 | GET | `/search-nation?term=` | `search_nation` | ✓ | In-memory nation directory search |
@@ -504,7 +493,7 @@ Real behaviors that will bite you, roughly in order of how likely they are to ma
 
 2. **`/bulk/import` returns HTTP 200 with `success: true` even when every row failed.** The flag means "the batch executed". Always read `results.failed` and `results.errors`.
 
-3. **`_users` is an in-memory dict.** After a restart, `load_user` returns `None` for a valid remember-me cookie, so `@login_required` bounces the user to `/login`. It's usually invisible (Google re-auths silently), but it also means **multiple gunicorn workers don't share the store** — each worker re-authenticates independently. Any real session backing (Redis, signed user data in the cookie) would fix both.
+3. **The `Auth` column above is now enforced globally, not per route.** `surus-auth`'s `before_request` guard gates everything that isn't `/auth/*` or `/healthz`, so **a new route is protected the moment you add it** — and if you ever need a public one, it has to be named in `public_prefixes`, not merely left undecorated. (This also retired the old in-memory `_users` dict, which lost every session on restart and was not shared between gunicorn workers.)
 
 4. **TLS verification is globally disabled** by the `requests.Session.send` monkeypatch at the top of both Python files. Intentional (corporate proxy), but it applies to every outbound call including OAuth and the NationBuilder API.
 
