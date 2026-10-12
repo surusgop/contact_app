@@ -198,6 +198,18 @@
       border-radius: 10px; padding: 1.1rem 1.25rem; margin-bottom: .85rem;
       box-shadow: 0 1px 4px rgba(220,38,38,.06);
     }
+    .manual-layout { display: grid; grid-template-columns: minmax(0, 1fr) 280px; gap: 1.25rem; align-items: start; }
+    .manual-notes {
+      position: sticky; top: 1rem;
+      background: var(--surface-2); border: 1px solid var(--border);
+      border-radius: 10px; padding: 1rem 1.1rem; font-size: .76rem; color: var(--charcoal); line-height: 1.45;
+    }
+    .manual-notes-title { font-family: 'Oswald', sans-serif; font-size: .78rem; letter-spacing: .1em; text-transform: uppercase; color: var(--text); margin-bottom: .6rem; }
+    .manual-notes-tip { background: #fff; border-left: 3px solid var(--primary); border-radius: 6px; padding: .55rem .7rem; margin-bottom: .75rem; }
+    .manual-notes summary { cursor: pointer; font-weight: 600; color: var(--text); }
+    .manual-notes dl { margin: 0; }
+    .manual-notes dt { font-weight: 600; color: var(--text); margin-top: .55rem; }
+    .manual-notes dd { margin: .1rem 0 0; }
     .queue-badge {
       display: inline-flex; align-items: center; justify-content: center;
       background: var(--primary); color: #fff; border-radius: 12px;
@@ -222,6 +234,8 @@
       .s-card, .s-card-gold { padding: 1rem .85rem; }
       .page-title { font-size: 1.3rem; }
       .two-col { grid-template-columns: 1fr; }
+      .manual-layout { grid-template-columns: 1fr; }
+      .manual-notes { position: static; order: -1; }
       .row-2 { flex-wrap: wrap; }
       .col-half { flex-basis: 100%; min-width: 0; }
       .form-grid { grid-template-columns: 1fr 1fr; }
@@ -351,11 +365,42 @@
     <div class="s-card-gold">
       <div class="s-label">Manual Entry</div>
       <p style="font-size:.8rem;color:var(--muted);margin-bottom:1rem;">Enter contacts manually. Add as many as you need — all will be included when you click Import.</p>
-      <div id="manual-forms-container"></div>
-      <button type="button" class="btn-gold" onclick="addManualForm()">+ Add Another Contact</button>
-      <div style="margin-top:1rem;display:flex;align-items:center;gap:.75rem;">
-        <button class="btn-red" style="font-size:.82rem;" onclick="importSection('manual')">Import Manual Contacts</button>
-        <span id="manual-import-count" style="font-size:.82rem;color:#6b7280;"></span>
+      <div class="manual-layout">
+        <div>
+          <div id="manual-forms-container"></div>
+          <button type="button" class="btn-gold" onclick="addManualForm()">+ Add Another Contact</button>
+          <div style="margin-top:1rem;display:flex;align-items:center;gap:.75rem;">
+            <button class="btn-red" style="font-size:.82rem;" onclick="importSection('manual')">Import Manual Contacts</button>
+            <span id="manual-import-count" style="font-size:.82rem;color:#6b7280;"></span>
+          </div>
+        </div>
+        <aside class="manual-notes">
+          <div class="manual-notes-title">How to fill this in</div>
+          <div class="manual-notes-tip">
+            <strong>The name doesn't have to be exact.</strong> Met "John Smith"? Typing <em>Jonathan Smith</em> still finds him &mdash; nicknames and Jr./III are handled. Get the <strong>last name</strong> right, then pick the person.
+          </div>
+          <details id="manual-notes-fields" open>
+          <summary>What each box means</summary>
+          <dl>
+            <dt>Name</dt>
+            <dd>First and last name. Used to search only &mdash; it doesn't link the contact by itself.</dd>
+            <dt>NB ID</dt>
+            <dd>The person's NationBuilder ID. <strong>Needed</strong> &mdash; this is what attaches the contact (and any tag) to them. Numbers only.</dd>
+            <dt>Find</dt>
+            <dd>Searches by the name and fills in NB ID. Use the address to pick the right person. Someone added very recently may not show up yet &mdash; type their ID in instead.</dd>
+            <dt>Contact Method</dt>
+            <dd>How you reached them. <strong>Always pick one</strong> &mdash; use "other" if nothing fits.</dd>
+            <dt>Contact Status</dt>
+            <dd>How it went. <strong>Always pick one</strong> &mdash; use "other" if nothing fits.</dd>
+            <dt>Date Contacted</dt>
+            <dd>The day it happened. Added to the top of the notes.</dd>
+            <dt>Notes</dt>
+            <dd>Optional. What was discussed, follow-ups.</dd>
+            <dt>Tag</dt>
+            <dd>Optional. Separate several with commas. New tags are created automatically. Only applied when NB ID is filled.</dd>
+          </dl>
+          </details>
+        </aside>
       </div>
     </div>
 
@@ -432,6 +477,10 @@
     // ── On load ───────────────────────────────────────────────────────
     window.addEventListener('DOMContentLoaded', () => {
       addManualForm();
+      // Field notes start collapsed on phones so the form isn't pushed off-screen
+      if (window.matchMedia('(max-width: 640px)').matches) {
+        document.getElementById('manual-notes-fields').removeAttribute('open');
+      }
       document.addEventListener('click', e => {
         const wrap = document.getElementById('behalf-search-wrap');
         if (wrap && !wrap.contains(e.target)) {
