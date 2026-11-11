@@ -7,8 +7,10 @@ pandas==2.2.3
 openpyxl==3.1.5
 python-docx==1.1.2
 pdfplumber==0.11.4
-# Shared Google sign-in. Brings in itsdangerous; replaces the flask-login
-# + authlib wiring this app used to carry.
+# Shared Google sign-in, roles, usage tracking and the /admin page. The
+# [databricks] extra brings databricks-sql-connector, which surus-auth uses
+# for the shared universal.ops tables (the app's own queries still go through
+# databricks-sdk above).
 #
 # surusgop/surus-auth is private, so pip needs a token. pip expands ${GH_PAT}
 # from the build environment, so set GH_PAT in Railway -> Variables (a
@@ -17,7 +19,7 @@ pdfplumber==0.11.4
 #
 # Locally:  pip install -e ../surus-auth
 #       or: GH_PAT=<token> pip install -r requirements.txt
-surus-auth[flask] @ git+https://${GH_PAT}@github.com/surusgop/surus-auth@v1.1.1
+surus-auth[flask,databricks] @ git+https://${GH_PAT}@github.com/surusgop/surus-auth@v2.2.1
 gunicorn==22.0.0
 Pillow==10.4.0
 pillow-heif==0.18.0

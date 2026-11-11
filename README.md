@@ -17,6 +17,7 @@ Everything happens on one page: **upload files**, **paste notes**, and **manual 
 - [Supported file types](#supported-file-types)
 - [Contact methods and statuses](#contact-methods-and-statuses)
 - [How data is stored](#how-data-is-stored)
+- [Roles, usage tracking and /admin](#roles-usage-tracking-and-admin)
 - [Troubleshooting](#troubleshooting)
 - [Repo layout](#repo-layout)
 
@@ -33,7 +34,7 @@ Everything happens on one page: **upload files**, **paste notes**, and **manual 
 4. **Review the staged queue** — every row is editable. The app auto-matches names to NationBuilder IDs (handling nicknames like Bill→William and suffixes like "Trip"→III), and shows a picker when there's more than one match.
 5. **Import** — each row is POSTed to `https://<nation>.nationbuilder.com/api/v2/contacts`. You get a success/failure count with plain-English error messages for anything that didn't land.
 
-Every login, setup, and import is logged to a Databricks table for auditing.
+Every login, setup, and import is logged to a Databricks table for auditing, and (since surus-auth v2) to the shared Surus tracking tables, which admins see on `/admin`.
 
 ---
 
@@ -85,6 +86,12 @@ DATABRICKS_WAREHOUSE_ID=abc123def456
 
 # AI extraction
 OPENROUTER_API_KEY=sk-or-...
+
+# Roles, usage tracking and /admin (surus-auth v2) -- see below
+APP_ID=contact_app
+APP_ENV=dev_yourname                 # prod in production; unset = dev
+PLATFORM_SCHEMA=                     # universal.ops; leave unset locally to keep it all in memory
+ADMIN_BOOTSTRAP_EMAILS=you@surusenterprises.com
 ```
 
 In the Google Cloud Console, add this **Authorized redirect URI**:
@@ -275,6 +282,80 @@ The log table doubles as user preferences: your saved nations on the Setup page 
 
 ---
 
+## Roles, usage tracking and /admin
+
+Sign-in, roles, usage tracking and the admin page come from
+[surus-auth](https://github.com/surusgop/surus-auth) v2.2.1 (`surus_auth.platform`),
+wired in `platform_setup.py`. People and activity live in the shared Surus tables
+in `universal.ops` under app id `contact_app`, next to every other Surus app.
+
+**`/admin`** (admins only; an **Admin** link appears in the nav for them) lists who
+uses the app with their role and status, shows recent activity, and sets the
+tracking level. The first admins come from `ADMIN_BOOTSTRAP_EMAILS`; after that,
+promote people on the page. Turning someone off there blocks them on their next
+request.
+
+**What is logged.** Ids, counts and the nation slug only: never the names, emails,
+phone numbers, addresses, notes or tag text of the people being contacted. This
+app is meant to run at the **full** tracking level with **AI calls** on (set both
+on `/admin`).
+
+| Action | Type | When | Details |
+| --- | --- | --- | --- |
+| `login` | auth | sign-in | |
+| `page.view` | view | `/` (page `home`), `/setup` (page `setup`) | nation slug |
+| `nation.select` | update | nation saved on Setup | nation slug |
+| `bulk.upload` | query | file parsed into the queue | file extension, row and column counts |
+| `bulk.paste` | query | pasted notes parsed | row count, text length |
+| `sample_csv.download` | export | sample CSV downloaded | |
+| `contact.create` | create | single **Import** | NB contact id, signup id, nation, method/status, tag counts |
+| `contact.bulk_import` | create | queue imported | nation, rows sent/created/failed, tag counts |
+| `ai.<feature>` | ai | each OpenRouter call | model, latency, HTTP status |
+
+At **full**, `change_log` also gets: for a single import, one row per field set
+on the new contact (`contact_method`, `contact_status`, `signup_id`; target
+`nb_contact` `<nation>/<contact id>`) and one per new tag on the person (target
+`nb_signup` `<nation>/<signup id>`, value = tag id); for a bulk import, one row
+holding the JSON list of created contact ids (target `nb_contacts` `<nation>`),
+so a 500-row import costs two background writes, not 500.
+
+With AI calls on, every OpenRouter call also writes an `ai_calls` row: feature
+(`image_extract`, `column_mapping`, `method_status_batch`, `infer_contact_type`,
+`paste_extract`), model, input/output tokens and cost from OpenRouter's `usage`,
+latency and outcome. Prompts and outputs are not stored.
+
+All of this is written on background threads and never fails or slows a
+request. The app's own `universal.logging.contact_app_logs` and
+`universal.contacts.contact_app_logs` rows are still written exactly as before;
+the plan is to run both for two weeks, then retire the old ones.
+
+**Variables** (in addition to the ones above):
+
+| Variable | Value |
+| --- | --- |
+| `APP_ID` | `contact_app` (optional: the code passes it) |
+| `APP_ENV` | `prod` in production; `dev`, `test` or `dev_<name>` elsewhere. Unset means dev, never prod |
+| `PLATFORM_SCHEMA` | `universal.ops`. Required when `APP_ENV=prod`; unset elsewhere keeps everything in memory |
+| `ADMIN_BOOTSTRAP_EMAILS` | the first admins, comma-separated |
+
+The shared tables reuse the app's Databricks variables: `DATABRICKS_HOST`,
+`DATABRICKS_TOKEN` and the warehouse in `DATABRICKS_WAREHOUSE_ID`. surus-auth
+talks to the warehouse through databricks-sql-connector, which needs its HTTP
+path; `platform_setup.py` builds `/sql/1.0/warehouses/<DATABRICKS_WAREHOUSE_ID>`
+for it, so there is no new Databricks variable. Set `DATABRICKS_HTTP_PATH` only
+to point the shared tables at a different warehouse. The token's principal
+needs `USE SCHEMA`, `SELECT` and `MODIFY` on `universal.ops` (and outside prod,
+`CREATE TABLE` on `universal.ops_<env>`, whose tables are created on first start).
+
+Don't add `DATABRICKS_CLIENT_ID` / `DATABRICKS_CLIENT_SECRET` while
+`DATABRICKS_TOKEN` is set: the app's own databricks-sdk client reads them from
+the environment too and refuses to start with two sign-in methods configured.
+
+Locally, leave `PLATFORM_SCHEMA` unset: roles and activity are kept in memory
+(at the full level, AI calls on) and lost on restart.
+
+---
+
 ## Troubleshooting
 
 **"Access restricted to Surus Enterprises accounts only."**
@@ -310,7 +391,8 @@ Rows POST sequentially. Raise gunicorn's `--timeout`, or split the work into a f
 
 ```
 contact_app/
-├── app.py                       # The entire Flask application
+├── app.py                       # The Flask application
+├── platform_setup.py            # surus-auth v2: Kit, /admin theme, tracking helpers
 ├── nationbuilder_contacts.py    # Standalone script: fetch contacts from the NB API
 ├── requirements.txt
 ├── Procfile                     # gunicorn entry point
