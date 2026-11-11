@@ -19,7 +19,7 @@ pdfplumber==0.11.4
 #
 # Locally:  pip install -e ../surus-auth
 #       or: GH_PAT=<token> pip install -r requirements.txt
-surus-auth[flask,databricks] @ git+https://${GH_PAT}@github.com/surusgop/surus-auth@v2.2.1
+surus-auth[flask,databricks] @ git+https://${GH_PAT}@github.com/surusgop/surus-auth@v2.2.3
 gunicorn==22.0.0
 Pillow==10.4.0
 pillow-heif==0.18.0
