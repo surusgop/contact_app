@@ -265,6 +265,9 @@
       <span class="user-name">{{ current_user.name }}</span>
       <span class="nation-badge">{{ default_nation_name }}</span>
       <a href="/setup" class="btn-ghost">Change Nation</a>
+      {% if current_user.role == 'admin' %}
+      <a href="/admin" class="btn-ghost">Admin</a>
+      {% endif %}
       <a href="/auth/logout" class="btn-ghost">Sign Out</a>
     </div>
   </nav>

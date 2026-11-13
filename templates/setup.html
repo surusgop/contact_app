@@ -243,6 +243,9 @@
       {% endif %}
     </div>
 
+    {% if current_user.role == 'admin' %}
+    <a href="/admin" class="signout">Admin</a>
+    {% endif %}
     <a href="/auth/logout" class="signout">Sign out</a>
   </div>
 

@@ -9,6 +9,7 @@ try:
 except ImportError:
     pass
 import threading
+import time
 import requests
 import urllib3
 import pandas as pd
@@ -16,6 +17,7 @@ from datetime import datetime, timezone, timedelta
 from flask import Flask, render_template, request, jsonify, redirect, url_for, session, Response
 from werkzeug.local import LocalProxy
 from surus_auth.flask import get_current_user, register_auth
+from surus_auth.roles.flask import admin_blueprint
 from dotenv import load_dotenv
 from databricks.sdk import WorkspaceClient
 from databricks.sdk.service.sql import StatementParameterListItem, StatementState
@@ -28,6 +30,10 @@ def _send_no_verify(self, *args, **kwargs):
 requests.Session.send = _send_no_verify
 
 load_dotenv()
+
+# Roles, usage tracking and /admin from surus-auth v2 (shared universal.ops
+# tables). Imported after load_dotenv() so a local .env is seen.
+from platform_setup import ADMIN_THEME, kit, track, track_ai, track_change  # noqa: E402
 
 app = Flask(__name__)
 app.secret_key = os.getenv("FLASK_SECRET_KEY", "dev-secret-change-me")
@@ -56,7 +62,19 @@ def _on_login(user: dict) -> None:
     # With none or several, index() bounces them to /setup to pick one.
 
 
-register_auth(app, cookie_name="contact_app_session", on_login=_on_login)
+def _on_login_both(user: dict) -> None:
+    """The shared platform first (team_members row + `login` event; never
+    raises), then the app's own bookkeeping and contact_app_logs row, which
+    stay as they were while old and new tracking run side by side."""
+    kit.on_login(user)
+    _on_login(user)
+
+
+# role_resolver reads team_members (cached 60 s); ADMIN_BOOTSTRAP_EMAILS are
+# always admin. A person turned off on /admin gets a 403.
+register_auth(app, cookie_name="contact_app_session", on_login=_on_login_both,
+              role_resolver=kit.resolver)
+app.register_blueprint(admin_blueprint(kit, theme=ADMIN_THEME))  # /admin, admins only
 
 
 class _User:
@@ -87,12 +105,24 @@ def _inject_current_user():
 
 _db = None
 def get_db():
+    """databricks-sdk client. Signs in with DATABRICKS_TOKEN when set, else with
+    the app's service principal (DATABRICKS_CLIENT_ID + DATABRICKS_CLIENT_SECRET,
+    an OAuth secret with scope all-apis). Same order as surus-auth, so the app
+    and the shared tables run as one identity. auth_type is explicit because the
+    SDK also reads these variables itself and refuses two methods otherwise."""
     global _db
     if _db is None:
-        _db = WorkspaceClient(
-            host=os.getenv("DATABRICKS_HOST"),
-            token=os.getenv("DATABRICKS_TOKEN"),
-        )
+        host = os.getenv("DATABRICKS_HOST")
+        token = (os.getenv("DATABRICKS_TOKEN") or "").strip()
+        client_id = (os.getenv("DATABRICKS_CLIENT_ID") or "").strip()
+        client_secret = (os.getenv("DATABRICKS_CLIENT_SECRET") or "").strip()
+        if token:
+            _db = WorkspaceClient(host=host, token=token, auth_type="pat")
+        elif client_id and client_secret:
+            _db = WorkspaceClient(host=host, client_id=client_id,
+                                  client_secret=client_secret, auth_type="oauth-m2m")
+        else:
+            _db = WorkspaceClient(host=host)  # the SDK's own default sign-in chain
     return _db
 
 WAREHOUSE_ID = os.getenv("DATABRICKS_WAREHOUSE_ID", "")
@@ -1030,7 +1060,10 @@ def setup():
         session["author_nb_id"] = author_nb_id
         log_action("nation_setup", current_user.email, current_user.name, nation_slug,
                    {"nation_name": nation_name, "author_nb_id": author_nb_id})
+        track("nation.select", "update", page="setup", target_type="nation", target=nation_slug or None,
+              metadata={"nation": nation_slug, "has_author_id": bool(author_nb_id)})
         return jsonify({"success": True})
+    track("page.view", "view", page="setup")
     user_nations = get_user_nations(current_user.email)
     return render_template("setup.html",
                            user_nations=user_nations,
@@ -1205,6 +1238,27 @@ def search_signup():
 
 
 OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY", "")
+OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions"
+
+
+def openrouter_chat(feature: str, payload: dict, timeout: int) -> requests.Response:
+    """POST one chat completion to OpenRouter and return the raw response,
+    exactly as the inline requests.post calls did. Also records the call
+    (model, tokens, latency, outcome; never the prompt or the output) as an
+    `ai` event + ai_calls row, kept when the app's log_ai_calls is on."""
+    started = time.monotonic()
+    try:
+        resp = requests.post(
+            OPENROUTER_URL,
+            headers={"Authorization": f"Bearer {OPENROUTER_API_KEY}", "Content-Type": "application/json"},
+            json=payload,
+            timeout=timeout,
+        )
+    except Exception as e:
+        track_ai(feature, payload.get("model", ""), started, error=e)
+        raise
+    track_ai(feature, payload.get("model", ""), started, resp=resp)
+    return resp
 
 
 def parse_image_with_ai(raw: bytes, _filename: str = "") -> pd.DataFrame:
@@ -1225,10 +1279,9 @@ def parse_image_with_ai(raw: bytes, _filename: str = "") -> pd.DataFrame:
         pass  # if PIL fails, send the original
     mime = "image/jpeg"
     b64 = base64.b64encode(raw).decode("utf-8")
-    resp = requests.post(
-        "https://openrouter.ai/api/v1/chat/completions",
-        headers={"Authorization": f"Bearer {OPENROUTER_API_KEY}", "Content-Type": "application/json"},
-        json={
+    resp = openrouter_chat(
+        "image_extract",
+        {
             "model": "openai/gpt-4o",
             "messages": [{
                 "role": "user",
@@ -1251,7 +1304,7 @@ def parse_image_with_ai(raw: bytes, _filename: str = "") -> pd.DataFrame:
                 ],
             }],
         },
-        timeout=90,
+        90,
     )
     resp.raise_for_status()
     content = resp.json()["choices"][0]["message"]["content"].strip()
@@ -1559,11 +1612,10 @@ Sample rows: {json.dumps(sample)}
 Return ONLY JSON (no markdown):
 {{"column_mapping": {{"source_column": "nb_field_or_null"}}, "notes": "one line summary"}}"""
 
-    resp = requests.post(
-        "https://openrouter.ai/api/v1/chat/completions",
-        headers={"Authorization": f"Bearer {OPENROUTER_API_KEY}", "Content-Type": "application/json"},
-        json={"model": "openai/gpt-4o-mini", "messages": [{"role": "user", "content": prompt}]},
-        timeout=30,
+    resp = openrouter_chat(
+        "column_mapping",
+        {"model": "openai/gpt-4o-mini", "messages": [{"role": "user", "content": prompt}]},
+        30,
     )
     resp.raise_for_status()
     content = resp.json()["choices"][0]["message"]["content"].strip()
@@ -1588,11 +1640,10 @@ Return ONLY JSON (no markdown):
                 '{"contact_method": "...", "contact_status": "..."}\n\n'
                 + "\n".join(f"{idx+1}. {text[:300]}" for idx, (_, text) in enumerate(needs_infer))
             )
-            br = requests.post(
-                "https://openrouter.ai/api/v1/chat/completions",
-                headers={"Authorization": f"Bearer {OPENROUTER_API_KEY}", "Content-Type": "application/json"},
-                json={"model": "openai/gpt-4o-mini", "messages": [{"role": "user", "content": batch_prompt}]},
-                timeout=30,
+            br = openrouter_chat(
+                "method_status_batch",
+                {"model": "openai/gpt-4o-mini", "messages": [{"role": "user", "content": batch_prompt}]},
+                30,
             )
             br.raise_for_status()
             bc = br.json()["choices"][0]["message"]["content"].strip()
@@ -1635,11 +1686,10 @@ contact_status (outcome of the contact): {json.dumps(CONTACT_STATUSES)}
 Return ONLY valid JSON with no markdown:
 {{"contact_method": "...", "contact_status": "..."}}"""
     try:
-        resp = requests.post(
-            "https://openrouter.ai/api/v1/chat/completions",
-            headers={"Authorization": f"Bearer {OPENROUTER_API_KEY}", "Content-Type": "application/json"},
-            json={"model": "openai/gpt-4o-mini", "messages": [{"role": "user", "content": prompt}]},
-            timeout=15,
+        resp = openrouter_chat(
+            "infer_contact_type",
+            {"model": "openai/gpt-4o-mini", "messages": [{"role": "user", "content": prompt}]},
+            15,
         )
         resp.raise_for_status()
         content = resp.json()["choices"][0]["message"]["content"].strip()
@@ -1677,6 +1727,7 @@ def sample_contacts_csv():
         "Bob Johnson III,6/19/2026,face to face,meaningful interaction,"
         "\"Great conversation about local issues\",\"Event Attendee, VIP\"\n"
     )
+    track("sample_csv.download", "export", page="home", row_count=3)
     return Response(
         csv_text,
         mimetype="text/csv",
@@ -1688,6 +1739,9 @@ def sample_contacts_csv():
 def bulk_upload():
     if "file" not in request.files or request.files["file"].filename == "":
         return jsonify({"success": False, "error": "No file uploaded"}), 400
+    started = time.monotonic()
+    # Only the extension: a file name can carry a person's name.
+    file_type = os.path.splitext(request.files["file"].filename or "")[1].lower().lstrip(".")[:10] or "none"
     try:
         df = parse_upload(request.files["file"])
         df = df.dropna(how="all").head(500)
@@ -1695,6 +1749,9 @@ def bulk_upload():
         all_rows_raw = df.fillna("").astype(str).to_dict(orient="records")
         result = ai_map_and_clean(columns, all_rows_raw)
         cleaned = result.get("cleaned_rows", [])
+        track("bulk.upload", "query", page="home", row_count=len(cleaned),
+              duration_ms=int((time.monotonic() - started) * 1000),
+              metadata={"file_type": file_type, "columns": len(columns)})
         return jsonify({
             "success": True,
             "columns": columns,
@@ -1704,6 +1761,9 @@ def bulk_upload():
             "all_rows": cleaned,
         })
     except Exception as e:
+        track("bulk.upload", "query", page="home", outcome="error",
+              duration_ms=int((time.monotonic() - started) * 1000),
+              metadata={"file_type": file_type, "error": type(e).__name__})
         return jsonify({"success": False, "error": str(e)}), 500
 
 
@@ -1735,16 +1795,16 @@ Return ONLY a JSON object (no markdown):
 Text:
 {text}"""
 
+    started = time.monotonic()
     try:
-        resp = requests.post(
-            "https://openrouter.ai/api/v1/chat/completions",
-            headers={"Authorization": f"Bearer {OPENROUTER_API_KEY}", "Content-Type": "application/json"},
-            json={
+        resp = openrouter_chat(
+            "paste_extract",
+            {
                 "model": "openai/gpt-4o-mini",
                 "messages": [{"role": "user", "content": prompt}],
                 "temperature": 0.1,
             },
-            timeout=30,
+            30,
         )
         resp.raise_for_status()
         raw = resp.json()["choices"][0]["message"]["content"].strip()
@@ -1765,8 +1825,13 @@ Text:
             row.setdefault("contact_status", "")
             row.setdefault("contact_date", "")
             row.setdefault("content", "")
+        track("bulk.paste", "query", page="home", row_count=len(rows),
+              duration_ms=int((time.monotonic() - started) * 1000), metadata={"chars": len(text)})
         return jsonify({"success": True, "all_rows": rows})
     except Exception as e:
+        track("bulk.paste", "query", page="home", outcome="error",
+              duration_ms=int((time.monotonic() - started) * 1000),
+              metadata={"chars": len(text), "error": type(e).__name__})
         return jsonify({"success": False, "error": str(e)}), 500
 
 
@@ -1780,9 +1845,13 @@ def bulk_import():
         return jsonify({"success": False, "error": "Nation slug required"}), 400
     if not rows:
         return jsonify({"success": False, "error": "No rows to import"}), 400
+    started = time.monotonic()
     try:
         token = get_nb_token(nation_slug)
     except Exception as e:
+        track("contact.bulk_import", "create", page="home", target_type="nation", target=nation_slug,
+              outcome="error", row_count=0,
+              metadata={"nation": nation_slug, "total_rows": len(rows), "error": "nb_auth_failed"})
         return jsonify({"success": False, "error": f"Auth failed: {e}"}), 500
 
     now = datetime.now(timezone.utc)
@@ -1797,6 +1866,7 @@ def bulk_import():
     }
     results = {"success": 0, "failed": 0, "errors": []}
     contacts_logged = []
+    created_contact_ids = []  # NationBuilder ids of the contacts made, for change_log
 
     # ── Tag resolution — once per batch, not once per row. Rows may carry a
     # per-row "tag" (from an AI-detected spreadsheet column) and/or a "list_tag"
@@ -1848,6 +1918,12 @@ def bulk_import():
             resp = requests.post(url, headers=headers, json=body)
             resp.raise_for_status()
             results["success"] += 1
+            try:
+                created_id = ((resp.json() or {}).get("data") or {}).get("id")
+            except Exception:
+                created_id = None
+            if created_id:
+                created_contact_ids.append(str(created_id))
             name = (row.get("_full_name") or
                     f"{row.get('_first_name', '')} {row.get('_last_name', '')}".strip())
             contacts_logged.append({
@@ -1908,6 +1984,31 @@ def bulk_import():
         "contacts_logged": contacts_logged,
         "tags_applied": tags_applied_log,
     }, success=(results["failed"] == 0 and tags_results["failed"] == 0))
+
+    # Shared platform log: counts and ids only, never names or notes. One
+    # event and one change_log row per import (not one per contact), so a
+    # 500-row import adds two background writes, not 500.
+    had_failures = results["failed"] or tags_results["failed"]
+    event_id = track(
+        "contact.bulk_import", "create", page="home", target_type="nation", target=nation_slug,
+        row_count=results["success"],
+        outcome="error" if not results["success"] and had_failures else ("partial" if had_failures else "success"),
+        duration_ms=int((time.monotonic() - started) * 1000),
+        metadata={
+            "nation": nation_slug,
+            "total_rows": len(rows),
+            "created": results["success"],
+            "failed": results["failed"],
+            "rows_with_signup": sum(1 for r in rows if str(r.get("signup_id", "") or "").strip()),
+            "tags_applied": tags_results["applied"],
+            "tags_already": tags_results["already_tagged"],
+            "tags_failed": tags_results["failed"],
+            "on_behalf": bool(imported_by and imported_by != current_user.name),
+        },
+    )
+    if created_contact_ids:
+        track_change(event_id, target_type="nb_contacts", target_id=nation_slug,
+                     field="created_contact_ids", new=json.dumps(created_contact_ids))
     return jsonify({"success": True, "results": results})
 
 
@@ -1915,6 +2016,7 @@ def bulk_import():
 def index():
     if not session.get("default_nation_slug"):
         return redirect("/setup")
+    track("page.view", "view", page="home", metadata={"nation": session.get("default_nation_slug")})
     return render_template("combined.html",
                            contact_methods=CONTACT_METHODS,
                            contact_statuses=CONTACT_STATUSES,
@@ -1980,6 +2082,8 @@ def import_contact():
     except Exception as e:
         log_action("single_import", current_user.email, current_user.name, nation_slug,
                    {"signup_id": signup_id}, success=False, error_message=str(e))
+        track("contact.create", "create", page="home", target_type="nb_contact", outcome="error", row_count=0,
+              metadata={"nation": nation_slug, "error": "nb_auth_failed"})
         return jsonify({"success": False, "error": f"Auth failed: {e}"}), 500
 
     # ── Contact log entry ────────────────────────────────────────────────
@@ -2016,12 +2120,15 @@ def import_contact():
     # tagged at all if no tag/signup_id was given. The tag field may itself
     # hold several comma/semicolon-separated tags. See docs/plans.md §2. ──
     tag_results = []
+    new_tag_ids = []  # signup_taggings actually created, for change_log
     if signup_id:
         for name in split_tag_names(tag_name):
             try:
                 tag_id = find_or_create_tag(nation_slug, token, name)
                 applied = apply_tag_to_signup(nation_slug, token, signup_id, tag_id)
                 tag_results.append({"success": True, "tag": name, "already_tagged": not applied})
+                if applied:
+                    new_tag_ids.append(tag_id)
             except Exception as e:
                 tag_results.append({"success": False, "tag": name, "error": str(e)})
 
@@ -2033,6 +2140,39 @@ def import_contact():
         "tags": tag_results,
     }, success=(contact_error is None and all(t.get("success", False) for t in tag_results)),
        error_message=(contact_error or {}).get("error", ""))
+
+    # Shared platform log: NationBuilder ids, the nation, method/status (fixed
+    # picklists) and counts. Never the notes or anyone's name.
+    contact_id = (((contact_data or {}).get("data") or {}).get("id")) if contact_data else None
+    tags_failed = sum(1 for t in tag_results if not t.get("success"))
+    event_id = track(
+        "contact.create", "create", page="home", target_type="nb_contact",
+        target=f"{nation_slug}/{contact_id}" if contact_id else None,
+        row_count=1 if contact_id else 0,
+        outcome="error" if contact_error else ("partial" if tags_failed else "success"),
+        metadata={
+            "nation": nation_slug,
+            "contact_id": contact_id,
+            "signup_id": signup_id or None,
+            "has_author": bool(form.get("author_id", "").strip()),
+            "method": attributes.get("contact_method"),
+            "status": attributes.get("contact_status"),
+            "tags_applied": len(new_tag_ids),
+            "tags_already": sum(1 for t in tag_results if t.get("already_tagged")),
+            "tags_failed": tags_failed,
+        },
+    )
+    if contact_id:
+        target = f"{nation_slug}/{contact_id}"
+        for field in ("contact_method", "contact_status"):
+            if attributes.get(field):
+                track_change(event_id, target_type="nb_contact", target_id=target,
+                             field=field, new=attributes[field])
+        if signup_id:
+            track_change(event_id, target_type="nb_contact", target_id=target, field="signup_id", new=signup_id)
+    for tag_id in new_tag_ids:
+        track_change(event_id, target_type="nb_signup", target_id=f"{nation_slug}/{signup_id}",
+                     field="signup_tag", new=tag_id)
 
     if contact_error:
         return jsonify({"success": False, "error": contact_error["error"],
