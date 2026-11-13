@@ -105,12 +105,24 @@ def _inject_current_user():
 
 _db = None
 def get_db():
+    """databricks-sdk client. Signs in with DATABRICKS_TOKEN when set, else with
+    the app's service principal (DATABRICKS_CLIENT_ID + DATABRICKS_CLIENT_SECRET,
+    an OAuth secret with scope all-apis). Same order as surus-auth, so the app
+    and the shared tables run as one identity. auth_type is explicit because the
+    SDK also reads these variables itself and refuses two methods otherwise."""
     global _db
     if _db is None:
-        _db = WorkspaceClient(
-            host=os.getenv("DATABRICKS_HOST"),
-            token=os.getenv("DATABRICKS_TOKEN"),
-        )
+        host = os.getenv("DATABRICKS_HOST")
+        token = (os.getenv("DATABRICKS_TOKEN") or "").strip()
+        client_id = (os.getenv("DATABRICKS_CLIENT_ID") or "").strip()
+        client_secret = (os.getenv("DATABRICKS_CLIENT_SECRET") or "").strip()
+        if token:
+            _db = WorkspaceClient(host=host, token=token, auth_type="pat")
+        elif client_id and client_secret:
+            _db = WorkspaceClient(host=host, client_id=client_id,
+                                  client_secret=client_secret, auth_type="oauth-m2m")
+        else:
+            _db = WorkspaceClient(host=host)  # the SDK's own default sign-in chain
     return _db
 
 WAREHOUSE_ID = os.getenv("DATABRICKS_WAREHOUSE_ID", "")

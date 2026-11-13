@@ -19,7 +19,9 @@ import time
 from surus_auth.flask import get_current_user
 from surus_auth.platform import from_env, memory_kit
 
-APP_ID = "contact_app"
+# This app's key in universal.ops.apps. Set APP_ID to override (it must match
+# the app's row there); every role and event is stored under it.
+APP_ID = os.environ.get("APP_ID", "").strip() or "contact_app"
 TITLE = "Contact App"
 ENV = os.environ.get("APP_ENV", "dev").strip().lower()
 

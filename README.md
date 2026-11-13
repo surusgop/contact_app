@@ -333,23 +333,26 @@ the plan is to run both for two weeks, then retire the old ones.
 
 | Variable | Value |
 | --- | --- |
-| `APP_ID` | `contact_app` (optional: the code passes it) |
+| `APP_ID` | `contact_app` (optional: the default when unset) |
 | `APP_ENV` | `prod` in production; `dev`, `test` or `dev_<name>` elsewhere. Unset means dev, never prod |
 | `PLATFORM_SCHEMA` | `universal.ops`. Required when `APP_ENV=prod`; unset elsewhere keeps everything in memory |
 | `ADMIN_BOOTSTRAP_EMAILS` | the first admins, comma-separated |
 
 The shared tables reuse the app's Databricks variables: `DATABRICKS_HOST`,
-`DATABRICKS_TOKEN` and the warehouse in `DATABRICKS_WAREHOUSE_ID`. surus-auth
+the sign-in, and the warehouse in `DATABRICKS_WAREHOUSE_ID`. surus-auth
 talks to the warehouse through databricks-sql-connector, which needs its HTTP
 path; `platform_setup.py` builds `/sql/1.0/warehouses/<DATABRICKS_WAREHOUSE_ID>`
 for it, so there is no new Databricks variable. Set `DATABRICKS_HTTP_PATH` only
-to point the shared tables at a different warehouse. The token's principal
+to point the shared tables at a different warehouse. The signed-in identity
 needs `USE SCHEMA`, `SELECT` and `MODIFY` on `universal.ops` (and outside prod,
 `CREATE TABLE` on `universal.ops_<env>`, whose tables are created on first start).
 
-Don't add `DATABRICKS_CLIENT_ID` / `DATABRICKS_CLIENT_SECRET` while
-`DATABRICKS_TOKEN` is set: the app's own databricks-sdk client reads them from
-the environment too and refuses to start with two sign-in methods configured.
+**Sign-in.** Use the app's service principal in production:
+`DATABRICKS_CLIENT_ID` + `DATABRICKS_CLIENT_SECRET` (an OAuth secret with scope
+`all-apis`; tokens are fetched and renewed automatically). `DATABRICKS_TOKEN`
+(a personal access token) still works and wins when both are set, for the app
+and for surus-auth alike, so remove it where the service principal should be
+used.
 
 Locally, leave `PLATFORM_SCHEMA` unset: roles and activity are kept in memory
 (at the full level, AI calls on) and lost on restart.
